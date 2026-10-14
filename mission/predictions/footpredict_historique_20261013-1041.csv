@@ -1,0 +1,81 @@
+﻿match_id,match_date,competition_name,home_team,away_team,final_score_home,final_score_away,app_market_proposal,app_confidence_pct,bookmaker_odds,bookmaker_implied_pct,value_bet_edge_pct,total_xg_home,total_xg_away,prediction_status,prediction_error_margin
+560542,2026-08-21T19:00:00Z,Premier League,Arsenal FC,Coventry City FC,3,0,BTTS - Yes,45.84,,,,1.85,0.56,GAGNÉ,0.54
+560543,2026-08-22T11:30:00Z,Premier League,Hull City AFC,Manchester United FC,2,0,BTTS - Yes,45.17,,,,1.50,1.78,GAGNÉ,0.57
+560546,2026-08-22T14:00:00Z,Premier League,Everton FC,Crystal Palace FC,2,0,BTTS - Yes,43.73,,,,1.45,2.23,GAGNÉ,0.56
+560545,2026-08-22T14:00:00Z,Premier League,Nottingham Forest FC,Leeds United FC,0,1,BTTS - Yes,43.21,,,,0.66,0.47,PERDU,0.41
+560544,2026-08-22T14:00:00Z,Premier League,Ipswich Town FC,Sunderland AFC,2,1,BTTS - Yes,43.69,,,,1.58,1.18,GAGNÉ,0.56
+560547,2026-08-22T16:30:00Z,Premier League,Brentford FC,Tottenham Hotspur FC,3,0,BTTS - Yes,45.33,,,,4.04,0.76,GAGNÉ,0.55
+560549,2026-08-23T13:00:00Z,Premier League,Brighton & Hove Albion FC,Aston Villa FC,4,0,BTTS - Yes,45.31,,,,4.00,0.28,GAGNÉ,0.55
+560548,2026-08-23T13:00:00Z,Premier League,Manchester City FC,AFC Bournemouth,2,1,BTTS - Yes,43.29,,,,2.47,0.71,GAGNÉ,0.52
+560550,2026-08-23T15:30:00Z,Premier League,Newcastle United FC,Liverpool FC,2,2,BTTS - Yes,43.54,,,,1.59,3.13,PERDU,0.41
+560551,2026-08-24T19:00:00Z,Premier League,Fulham FC,Chelsea FC,2,3,BTTS - Yes,42.83,,,,1.42,2.58,PERDU,0.41
+560555,2026-08-28T19:00:00Z,Premier League,Crystal Palace FC,Manchester City FC,1,4,BTTS - No,49.85,,,,0.93,2.57,GAGNÉ,0.34
+560552,2026-08-29T11:30:00Z,Premier League,Liverpool FC,Nottingham Forest FC,2,2,BTTS - No,56.17,,,,1.28,2.88,PERDU,0.56
+560561,2026-08-29T14:00:00Z,Premier League,Coventry City FC,Hull City AFC,0,1,BTTS - No,51.43,,,,1.18,0.46,GAGNÉ,0.31
+560560,2026-08-29T14:00:00Z,Premier League,AFC Bournemouth,Everton FC,1,1,BTTS - No,48.81,,,,2.26,1.66,PERDU,0.65
+560558,2026-08-29T16:30:00Z,Premier League,Tottenham Hotspur FC,Newcastle United FC,0,2,Over 2.5,49.45,,,,1.12,1.01,GAGNÉ,0.34
+560559,2026-08-30T13:00:00Z,Premier League,Leeds United FC,Brentford FC,1,1,Under 2.5,35.61,,,,1.15,1.61,PERDU,0.40
+560556,2026-08-30T13:00:00Z,Premier League,Chelsea FC,Brighton & Hove Albion FC,4,3,Over 2.5,49.68,,,,3.83,1.79,PERDU,0.66
+560554,2026-08-30T13:00:00Z,Premier League,Sunderland AFC,Fulham FC,1,0,Over 2.5,38.97,,,,1.56,1.02,GAGNÉ,0.61
+560553,2026-08-30T15:30:00Z,Premier League,Manchester United FC,Ipswich Town FC,5,2,BTTS - No,46.82,,,,4.87,1.81,PERDU,0.62
+560557,2026-08-31T19:00:00Z,Premier League,Aston Villa FC,Arsenal FC,0,1,Over 2.5,53.79,,,,0.28,1.52,GAGNÉ,0.28
+560566,2026-09-04T19:00:00Z,Premier League,Ipswich Town FC,Liverpool FC,0,2,Over 2.5,43.08,,,,0.60,0.74,GAGNÉ,0.57
+560571,2026-09-05T11:30:00Z,Premier League,Newcastle United FC,AFC Bournemouth,2,2,Over 2.5,56.50,,,,0.77,1.64,PERDU,0.63
+560568,2026-09-05T14:00:00Z,Premier League,Fulham FC,Crystal Palace FC,2,3,Over 2.5,45.10,,,,2.88,2.36,PERDU,0.60
+560565,2026-09-05T14:00:00Z,Premier League,Brentford FC,Sunderland AFC,1,1,BTTS - No,54.80,,,,1.59,2.15,PERDU,0.61
+560564,2026-09-05T14:00:00Z,Premier League,Brighton & Hove Albion FC,Leeds United FC,1,1,BTTS - Yes,40.98,,,,2.22,2.23,PERDU,0.41
+560563,2026-09-05T14:00:00Z,Premier League,Manchester City FC,Coventry City FC,1,0,Over 2.5,58.88,,,,2.19,1.49,GAGNÉ,0.21
+560562,2026-09-05T14:00:00Z,Premier League,Nottingham Forest FC,Tottenham Hotspur FC,0,0,BTTS - No,46.08,,,,0.83,1.48,PERDU,0.61
+560569,2026-09-05T16:30:00Z,Premier League,Hull City AFC,Aston Villa FC,0,0,BTTS - No,54.58,,,,0.81,1.64,PERDU,0.73
+560567,2026-09-06T13:00:00Z,Premier League,Everton FC,Manchester United FC,2,2,Over 2.5,54.39,,,,1.06,0.87,PERDU,0.60
+560570,2026-09-06T15:30:00Z,Premier League,Arsenal FC,Chelsea FC,2,1,Over 2.5,51.88,,,,2.81,0.43,GAGNÉ,0.31
+560581,2026-09-12T14:00:00Z,Premier League,Chelsea FC,Hull City AFC,2,2,Under 2.5,38.90,,,,1.21,1.80,PERDU,0.43
+560576,2026-09-12T14:00:00Z,Premier League,AFC Bournemouth,Brentford FC,2,2,Over 2.5,47.51,,,,2.55,0.79,PERDU,0.53
+560574,2026-09-12T14:00:00Z,Premier League,Aston Villa FC,Nottingham Forest FC,1,2,Under 2.5,33.30,,,,1.09,2.79,GAGNÉ,0.63
+560573,2026-09-12T14:00:00Z,Premier League,Liverpool FC,Fulham FC,0,0,Over 2.5,60.61,,,,1.80,0.92,PERDU,0.67
+560572,2026-09-12T14:00:00Z,Premier League,Crystal Palace FC,Ipswich Town FC,2,3,Over 2.5,47.39,,,,0.94,2.03,PERDU,0.45
+560575,2026-09-12T16:30:00Z,Premier League,Tottenham Hotspur FC,Everton FC,0,0,BTTS - No,44.16,,,,0.74,1.60,PERDU,0.59
+560577,2026-09-12T19:00:00Z,Premier League,Sunderland AFC,Arsenal FC,0,2,BTTS - No,40.18,,,,2.07,1.99,GAGNÉ,0.46
+560578,2026-09-13T13:00:00Z,Premier League,Coventry City FC,Brighton & Hove Albion FC,0,5,Over 2.5,48.13,,,,1.05,2.77,GAGNÉ,0.36
+560580,2026-09-13T15:30:00Z,Premier League,Manchester United FC,Manchester City FC,0,1,Over 2.5,53.51,,,,0.94,1.14,GAGNÉ,0.41
+560579,2026-09-14T19:00:00Z,Premier League,Leeds United FC,Newcastle United FC,4,1,Under 2.5,40.40,,,,2.29,0.79,GAGNÉ,0.60
+560591,2026-09-18T19:00:00Z,Premier League,Brentford FC,Chelsea FC,3,0,Over 2.5,49.97,,,,2.48,0.89,GAGNÉ,0.33
+560587,2026-09-19T11:30:00Z,Premier League,Tottenham Hotspur FC,Aston Villa FC,2,3,Under 2.5,42.67,,,,1.72,1.71,PERDU,0.41
+560588,2026-09-19T14:00:00Z,Premier League,Newcastle United FC,Hull City AFC,2,1,Over 2.5,40.44,,,,1.38,1.16,PERDU,0.40
+560586,2026-09-19T14:00:00Z,Premier League,Brighton & Hove Albion FC,Arsenal FC,3,0,Under 2.5,42.35,,,,2.11,1.24,GAGNÉ,0.60
+560584,2026-09-19T14:00:00Z,Premier League,Everton FC,Ipswich Town FC,1,0,Over 2.5,50.57,,,,2.58,1.10,GAGNÉ,0.33
+560589,2026-09-19T16:30:00Z,Premier League,Nottingham Forest FC,Coventry City FC,0,1,Under 2.5,45.62,,,,1.32,0.69,PERDU,0.43
+560590,2026-09-20T13:00:00Z,Premier League,Manchester City FC,Sunderland AFC,5,3,BTTS - No,59.66,,,,2.67,3.11,GAGNÉ,0.34
+560585,2026-09-20T13:00:00Z,Premier League,Leeds United FC,Crystal Palace FC,0,0,Over 2.5,50.92,,,,1.09,1.13,PERDU,0.68
+560582,2026-09-20T13:00:00Z,Premier League,AFC Bournemouth,Liverpool FC,0,1,Over 2.5,42.79,,,,0.94,1.29,GAGNÉ,0.52
+560583,2026-09-20T15:30:00Z,Premier League,Fulham FC,Manchester United FC,1,1,Over 2.5,45.85,,,,1.72,2.12,PERDU,0.51
+560593,2026-10-10T11:30:00Z,Premier League,Arsenal FC,Leeds United FC,2,1,Under 2.5,52.64,,,,2.32,1.20,GAGNÉ,0.50
+560601,2026-10-10T14:00:00Z,Premier League,Aston Villa FC,Brentford FC,2,2,BTTS - No,44.33,,,,1.84,1.28,PERDU,0.49
+560599,2026-10-10T14:00:00Z,Premier League,Ipswich Town FC,Fulham FC,2,1,Under 2.5,35.31,,,,1.26,1.78,PERDU,0.39
+560595,2026-10-10T14:00:00Z,Premier League,Chelsea FC,AFC Bournemouth,5,1,Over 2.5,53.31,,,,1.37,1.68,GAGNÉ,0.41
+560592,2026-10-10T14:00:00Z,Premier League,Sunderland AFC,Brighton & Hove Albion FC,0,2,Over 2.5,45.69,,,,0.87,1.64,GAGNÉ,0.39
+560600,2026-10-10T16:30:00Z,Premier League,Manchester United FC,Tottenham Hotspur FC,1,1,Victoire Manchester United FC,51.74,,,,0.87,2.03,PERDU,0.69
+560596,2026-10-11T13:00:00Z,Premier League,Crystal Palace FC,Nottingham Forest FC,3,1,Over 2.5,42.90,,,,2.25,3.76,PERDU,0.57
+560594,2026-10-11T13:00:00Z,Premier League,Hull City AFC,Everton FC,2,2,Under 2.5,45.71,,,,1.53,2.80,GAGNÉ,0.54
+560598,2026-10-11T15:30:00Z,Premier League,Liverpool FC,Manchester City FC,0,3,BTTS - No,41.61,,,,0.76,1.59,GAGNÉ,0.45
+560597,2026-10-12T19:00:00Z,Premier League,Coventry City FC,Newcastle United FC,4,1,Over 2.5,45.88,,,,1.66,2.22,PERDU,0.61
+560603,2026-10-17T11:30:00Z,Premier League,Everton FC,Chelsea FC,,,Over 2.5,42.90,3.70,27.03,,,,EN_ATTENTE,
+560602,2026-10-17T14:00:00Z,Premier League,Fulham FC,Hull City AFC,,,Over 2.5,40.16,4.75,21.05,,,,EN_ATTENTE,
+560610,2026-10-17T14:00:00Z,Premier League,Manchester City FC,Ipswich Town FC,,,Over 2.5,70.64,10.00,10.00,,,,EN_ATTENTE,
+560611,2026-10-17T14:00:00Z,Premier League,Brentford FC,Liverpool FC,,,Under 2.5,47.88,3.60,27.78,,,,EN_ATTENTE,
+560607,2026-10-17T16:30:00Z,Premier League,Newcastle United FC,Aston Villa FC,,,Over 2.5,52.97,3.60,27.78,,,,EN_ATTENTE,
+560604,2026-10-18T13:00:00Z,Premier League,AFC Bournemouth,Sunderland AFC,,,Over 2.5,48.69,3.50,28.57,,,,EN_ATTENTE,
+560605,2026-10-18T13:00:00Z,Premier League,Leeds United FC,Manchester United FC,,,BTTS - No,43.32,3.60,27.78,,,,EN_ATTENTE,
+560609,2026-10-18T13:00:00Z,Premier League,Brighton & Hove Albion FC,Crystal Palace FC,,,BTTS - No,53.56,,,,,,EN_ATTENTE,
+560608,2026-10-18T15:30:00Z,Premier League,Nottingham Forest FC,Arsenal FC,,,Under 2.5,39.98,5.50,18.18,,,,EN_ATTENTE,
+560606,2026-10-19T19:00:00Z,Premier League,Tottenham Hotspur FC,Coventry City FC,,,Under 2.5,45.04,6.30,15.87,,,,EN_ATTENTE,
+560620,2026-10-23T19:00:00Z,Premier League,Ipswich Town FC,Nottingham Forest FC,,,Over 2.5,44.72,3.40,29.41,,,,EN_ATTENTE,
+560614,2026-10-24T11:30:00Z,Premier League,Aston Villa FC,Manchester City FC,,,BTTS - No,51.92,4.40,22.73,,,,EN_ATTENTE,
+560616,2026-10-24T14:00:00Z,Premier League,Arsenal FC,Everton FC,,,Victoire Arsenal FC,60.61,7.25,13.79,,,,EN_ATTENTE,
+560618,2026-10-24T14:00:00Z,Premier League,Coventry City FC,Fulham FC,,,Under 2.5,42.41,3.50,28.57,,,,EN_ATTENTE,
+560617,2026-10-24T16:30:00Z,Premier League,Chelsea FC,Tottenham Hotspur FC,,,Over 2.5,52.08,4.11,24.33,,,,EN_ATTENTE,
+560612,2026-10-25T14:00:00Z,Premier League,Liverpool FC,Brighton & Hove Albion FC,,,Over 2.5,48.38,,,,,,EN_ATTENTE,
+560613,2026-10-25T14:00:00Z,Premier League,Crystal Palace FC,Newcastle United FC,,,Over 2.5,46.12,3.48,28.74,,,,EN_ATTENTE,
+560615,2026-10-25T14:00:00Z,Premier League,Manchester United FC,AFC Bournemouth,,,Over 2.5,50.67,4.26,23.47,,,,EN_ATTENTE,
+560619,2026-10-25T14:00:00Z,Premier League,Hull City AFC,Brentford FC,,,Over 2.5,32.01,4.20,23.81,,,,EN_ATTENTE,
+560621,2026-10-25T16:30:00Z,Premier League,Sunderland AFC,Leeds United FC,,,Under 2.5,38.78,3.30,30.30,,,,EN_ATTENTE,

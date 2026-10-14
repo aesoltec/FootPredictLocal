@@ -1,0 +1,5 @@
+project_id = "footpredict-local"
+
+[functions.scrape-understat]
+enabled = true
+verify_jwt = true
