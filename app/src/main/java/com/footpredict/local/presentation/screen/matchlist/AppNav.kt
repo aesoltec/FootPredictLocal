@@ -133,7 +133,8 @@ fun AppNav(
                     },
                     bankrollCapital = uiState.bankrollCapital,
                     flatStake = uiState.flatStake,
-                    stakingStrategy = uiState.stakingStrategy
+                    stakingStrategy = uiState.stakingStrategy,
+                    safeCoupon = uiState.safeCoupon
                 )
             }
             composable("matchs") {

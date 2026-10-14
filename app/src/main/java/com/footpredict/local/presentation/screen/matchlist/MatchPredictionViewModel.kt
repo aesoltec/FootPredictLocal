@@ -406,15 +406,22 @@ class MatchPredictionViewModel @Inject constructor(
             )
             // Cartes détaillées : tous les matchs à venir + live.
             val detailed = map.filterKeys { it in detailedIds || it in liveIds }
-            // Coupon du jour (v1.3.0, accueil) : jambes strictes — confiance
-            // modèle ≥ 65 % ET value bet active (edge > 0 exigé dans
+            // Coupon du jour (v1.3.2, accueil) : jambes strictes — confiance
+            // modèle ≥ 75 % ET value bet active (edge > 0 exigé dans
             // buildCoupon). Sinon null honnête + message capital à l’accueil.
             val couponPool = upcomingPool.filter {
-                (map[it.fixture.id]?.confidence ?: 0.0) >= 0.65
+                (map[it.fixture.id]?.confidence ?: 0.0) >= 0.75
             }
             val coupon = buildCoupon(
                 couponPool.filter { it.fixture.id in detailedIds },
                 detailed
+            )
+            // Safe du jour (v1.3.2) : lignes dégradées à probabilité ≥ 88 %,
+            // sans condition de confiance modèle (la ligne sécurisée porte
+            // déjà sa propre sécurité). Null honnête si vide.
+            val safeCoupon = buildSafeCoupon(
+                upcomingPool.filter { it.fixture.id in detailedIds },
+                map
             )
             notifier.notifyHigh(alerts)
             _uiState.update {
@@ -430,6 +437,7 @@ class MatchPredictionViewModel @Inject constructor(
                     topBttsNo = PickHelpers.topBttsNo(upcomingPool, map),
                     topDC = topDoubleChance(upcomingPool, map),
                     coupon = coupon,
+                    safeCoupon = safeCoupon,
                     computeProgress = null,
                     showNotifPrompt = alerts.any { a ->
                         a.severity == com.footpredict.local.domain.model.AlertSeverity.HIGH

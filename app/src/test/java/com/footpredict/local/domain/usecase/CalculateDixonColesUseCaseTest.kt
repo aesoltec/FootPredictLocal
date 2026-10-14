@@ -136,4 +136,18 @@ class CalculateDixonColesUseCaseTest {
         assertTrue(pred.bttsYesProb in 0.0..1.0)
         assertEquals(1.0, pred.bttsYesProb + pred.bttsNoProb, 0.02)
     }
+
+    @Test
+    fun `over lines order logically and stay bounded`() = runTest {
+        // v1.3.2 Safe : P(>1,5) ≥ P(>2,5) ≥ P(>3,5), toutes dans [0,1].
+        val pred = useCase(
+            sampleMatch(),
+            stats(33, "Man Utd", 12, 8, 6, 9),
+            stats(40, "Liverpool", 15, 11, 5, 7)
+        )
+        assertTrue(pred.over15Prob in 0.0..1.0)
+        assertTrue(pred.over35Prob in 0.0..1.0)
+        assertTrue(pred.over15Prob >= pred.over25Prob)
+        assertTrue(pred.over25Prob >= pred.over35Prob)
+    }
 }

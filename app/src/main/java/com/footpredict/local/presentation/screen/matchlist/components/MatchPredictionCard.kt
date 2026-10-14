@@ -170,9 +170,11 @@ fun MatchPredictionCard(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                // Rappels sous le score, EN COLONNE (l’ancienne Row horizontale
-                // expulsait la 3ᵉ ligne hors écran) : meilleur marché (même
-                // fonction que l’export CSV) + 1X2 + Double Chance explicites.
+                // Rappel UNIQUE sous le score, EN COLONNE : le marché au plus haut
+                // % l’emporte (même fonction que l’export CSV → carte et fichier
+                // disent la même chose). Les autres marchés restent détaillés
+                // dans les sections (1X2, Buts, Double Chance, Corners) : UNE
+                // vérité, pas trois lignes qui semblent se contredire.
                 // Données FIGÉES d’avant-match, aucune réévaluation.
                 if (settled != null) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -191,34 +193,14 @@ fun MatchPredictionCard(
                             else -> stringResource(R.string.pick_home_win, fixture.homeTeamName)
                         }
                         Text(
-                            stringResource(R.string.settled_predicted, predictedLabel),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        val resultLabel = when (settled.predictedOutcome) {
-                            "HOME" -> stringResource(R.string.pick_home_win, fixture.homeTeamName)
-                            "AWAY" -> stringResource(R.string.pick_away_win, fixture.awayTeamName)
-                            else -> stringResource(R.string.pick_draw)
-                        }
-                        Text(
-                            stringResource(R.string.settled_pick_1x2, resultLabel),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        val (dcCode, _) = PickHelpers.doubleChanceOf(
-                            settled.homeWinProb, settled.drawProb, settled.awayWinProb
-                        ).best()
-                        Text(
                             stringResource(
-                                R.string.settled_pick_dc,
-                                when (dcCode) {
-                                    "1X" -> stringResource(R.string.dc_1x, fixture.homeTeamName)
-                                    "12" -> stringResource(R.string.dc_12, fixture.homeTeamName, fixture.awayTeamName)
-                                    else -> stringResource(R.string.dc_x2, fixture.awayTeamName)
-                                }
+                                R.string.settled_predicted,
+                                predictedLabel,
+                                (pick.probability * 100).roundToInt()
                             ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

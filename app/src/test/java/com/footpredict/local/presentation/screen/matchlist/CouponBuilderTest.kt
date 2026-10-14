@@ -81,8 +81,23 @@ class CouponBuilderTest {
     }
 
     @Test
-    fun `double chance tops rank best coverage`() {
-        val list = listOf(match(1), match(2))
+    fun `safe coupon keeps only legs at 88 percent`() {
+        val m1 = match(1)
+        val m2 = match(2)
+        val preds = mapOf(
+            1 to pred(0.7, null).copy(matchId = 1), // DC 1X = 0,95
+            2 to pred(0.65, null).copy(matchId = 2) // DC 1X = 0,90
+        )
+        val safe = buildSafeCoupon(listOf(m1, m2), preds)!!
+        assertEquals(2, safe.legs.size)
+        assertEquals(0.925, safe.avgConfidence, 0.001)
+        // Sous le seuil : rien (jamais forcé).
+        val low = mapOf(1 to pred(0.5, null).copy(matchId = 1)) // DC 1X = 0,75
+        assertNull(buildSafeCoupon(listOf(m1), low))
+    }
+
+    @Test
+    fun `double chance tops rank best coverage`() {        val list = listOf(match(1), match(2))
         val preds = mapOf(
             1 to pred(0.6, null).copy(matchId = 1), // 1X=0.85
             2 to pred(0.3, null).copy(matchId = 2) // 1X=0.55, 12=0.75

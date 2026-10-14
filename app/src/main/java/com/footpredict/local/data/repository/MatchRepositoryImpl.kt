@@ -1,6 +1,8 @@
 package com.footpredict.local.data.repository
 
 import com.footpredict.local.data.aggregator.DataFusionAggregator
+import com.footpredict.local.data.aggregator.dedupeFixtures
+import com.footpredict.local.data.aggregator.isSameFixture
 import com.footpredict.local.data.aggregator.mergeXg
 import com.footpredict.local.data.local.LocalDataSource
 import com.footpredict.local.data.local.TeamLogoStore
@@ -80,7 +82,16 @@ class MatchRepositoryImpl @Inject constructor(
             try {
                 val merged = aggregator.fetchMergedFixturesFull(leagueId, season)
                 val sourcesUsed = merged.sourcesUsed
-                val fixtures = mergeXg(merged.fixtures, merged.alternates)
+                // Anti-doublons inter-synchros (audit 2026-10-14) : la meilleure
+                // source variant, un même match peut arriver sous un autre ID
+                // (« Hull » vs « Hull City AFC »). On garde les lignes DÉJÀ en
+                // base (historique soldé intact) et on écarte les doublons
+                // entrants — jamais l’inverse (pas d’orphelins).
+                val incoming = dedupeFixtures(mergeXg(merged.fixtures, merged.alternates))
+                    .filter { inc ->
+                        cachedEntities.none { it.id != inc.id && isSameFixture(it, inc) }
+                    }
+                val fixtures = incoming.ifEmpty { cachedEntities }
 
                 if (fixtures.isEmpty()) {
                     if (cachedEntities.isEmpty()) {

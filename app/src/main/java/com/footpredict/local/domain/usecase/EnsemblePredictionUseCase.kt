@@ -119,7 +119,9 @@ class EnsemblePredictionUseCase @Inject constructor() {
             market = market,
             elo = elo,
             valueBets = valueBets,
-            bttsYesProb = dixonColes?.bttsYesProb
+            bttsYesProb = dixonColes?.bttsYesProb,
+            over15Prob = dixonColes?.over15Prob,
+            over35Prob = dixonColes?.over35Prob
         )
     }
 

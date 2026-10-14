@@ -60,6 +60,8 @@ class CalculateLiveRestOfMatchUseCase @Inject constructor() {
         var pAway = 0.0
         var pOver25 = 0.0
         var pBttsYes = 0.0
+        var pOver15 = 0.0
+        var pOver35 = 0.0
         var totalMass = 0.0
 
         for (i in 0..MAX_EXTRA) {
@@ -78,6 +80,8 @@ class CalculateLiveRestOfMatchUseCase @Inject constructor() {
                     else -> pAway += p
                 }
                 if (finalH + finalA > 2) pOver25 += p
+                if (finalH + finalA > 1) pOver15 += p
+                if (finalH + finalA > 3) pOver35 += p
                 if (finalH >= 1 && finalA >= 1) pBttsYes += p
             }
         }
@@ -87,6 +91,8 @@ class CalculateLiveRestOfMatchUseCase @Inject constructor() {
             pDraw /= totalMass
             pAway /= totalMass
             pOver25 /= totalMass
+            pOver15 /= totalMass
+            pOver35 /= totalMass
             pBttsYes /= totalMass
         }
 
@@ -100,7 +106,9 @@ class CalculateLiveRestOfMatchUseCase @Inject constructor() {
             lambdaHome = lambdaRemH,
             lambdaAway = lambdaRemA,
             bttsYesProb = pBttsYes.coerceIn(0.0, 1.0),
-            bttsNoProb = (1.0 - pBttsYes).coerceIn(0.0, 1.0)
+            bttsNoProb = (1.0 - pBttsYes).coerceIn(0.0, 1.0),
+            over15Prob = pOver15.coerceIn(0.0, 1.0),
+            over35Prob = pOver35.coerceIn(0.0, 1.0)
         )
     }
 
@@ -164,7 +172,9 @@ class CalculateLiveRestOfMatchUseCase @Inject constructor() {
             market = marketLive,
             elo = null,
             valueBets = emptyList(),
-            bttsYesProb = liveRom.bttsYesProb
+            bttsYesProb = liveRom.bttsYesProb,
+            over15Prob = liveRom.over15Prob,
+            over35Prob = liveRom.over35Prob
         )
     }
 

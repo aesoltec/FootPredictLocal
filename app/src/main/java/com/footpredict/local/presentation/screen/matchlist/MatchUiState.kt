@@ -83,6 +83,8 @@ data class MatchUiState(
     val settledMap: Map<Int, com.footpredict.local.domain.model.SettledPrediction> = emptyMap(),
     /** Coupon auto (null = rien ne passe la sécurité). */
     val coupon: Coupon? = null,
+    /** Safe du jour v1.3.2 (null = aucune ligne à 88 %, état honnête). */
+    val safeCoupon: SafeCoupon? = null,
     /** Progression du calcul (faits/total), null si inactif. */
     val computeProgress: Pair<Int, Int>? = null,
     /** Gestion du capital v1.3.0 : partagée Réglages ↔ Coupon du Jour. */

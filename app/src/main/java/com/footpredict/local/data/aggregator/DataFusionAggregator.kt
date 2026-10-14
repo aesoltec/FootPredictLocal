@@ -64,6 +64,33 @@ private fun namesMatch(a: String, b: String): Boolean {
 }
 
 /**
+ * Même match toutes sources confondues (pur, testé) : mêmes équipes (flou :
+ * « Hull » == « Hull City AFC », « Brighton » == « Brighton & Hove Albion »)
+ * + même jour calendaire (±1 j pour les fuseaux). Utilisé contre les doublons
+ * inter-synchros : la meilleure source variant (quota, panne), des lignes
+ * d’ID différents pour le même match s’accumuleraient sinon (alertes et
+ * compteurs doublés, constaté sur téléphone).
+ */
+fun isSameFixture(a: MatchEntity, b: MatchEntity): Boolean {
+    if (kotlin.math.abs(a.dateTimestamp - b.dateTimestamp) > 86400) return false
+    return namesMatch(a.homeTeamName, b.homeTeamName) &&
+        namesMatch(a.awayTeamName, b.awayTeamName)
+}
+
+/**
+ * Déduplique en gardant la PREMIÈRE occurrence (pur, testé) : l’historique
+ * soldé référence les IDs, on ne remplace donc jamais une ligne existante
+ * par un doublon d’une autre source (pas de lignes orphelines).
+ */
+fun dedupeFixtures(fixtures: List<MatchEntity>): List<MatchEntity> {
+    val kept = mutableListOf<MatchEntity>()
+    for (f in fixtures) {
+        if (kept.none { isSameFixture(it, f) }) kept += f
+    }
+    return kept
+}
+
+/**
  * Agrège les sources en parallèle et fusionne par reliabilityScore.
  *
  * Règles :
@@ -104,9 +131,14 @@ class DataFusionAggregator @Inject constructor(
             }
 
             val nonEmpty = results.filter { it.second.isNotEmpty() }
-            // Si toutes les sources sont vides, on garde la plus fiable
-            // (liste vide → le repository émettra "Aucune source disponible").
-            val best = (nonEmpty.ifEmpty { results }).maxByOrNull { it.first.reliabilityScore }!!
+            // Si toutes les sources sont vides (hors-ligne + cache vide),
+            // liste vide honnête : le repository émettra "Aucune source
+            // disponible" au lieu de planter sur maxByOrNull!! (audit 2026-10-14).
+            if (nonEmpty.isEmpty()) {
+                return@coroutineScope MergedFixtures(emptyList(), emptyList(), emptyList())
+            }
+            val best = nonEmpty.maxByOrNull { it.first.reliabilityScore }
+                ?: return@coroutineScope MergedFixtures(emptyList(), emptyList(), emptyList())
             val sourcesUsed = results.map { it.first.sourceName }
             val alternates = results
                 .filter { it.first.sourceName != best.first.sourceName }
@@ -136,7 +168,7 @@ class DataFusionAggregator @Inject constructor(
 
         // Priorité xG (reliability 0.9) puis API-Football
         val sorted = results.sortedByDescending { it.first.reliabilityScore }
-        val base = sorted.first().second!!
+        val base = sorted.firstOrNull()?.second ?: return@coroutineScope null
 
         // Enrichir avec xG si une source xG a répondu
         val xgSource = sorted.find { it.first.sourceName.contains("understat") }?.second
@@ -166,7 +198,7 @@ class DataFusionAggregator @Inject constructor(
         }.awaitAll().filterNotNull().filter { it.second != null }
 
         if (results.isEmpty()) return@coroutineScope null
-        results.maxByOrNull { it.first.reliabilityScore }!!.second
+        results.maxByOrNull { it.first.reliabilityScore }?.second
     }
 
     /**

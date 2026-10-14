@@ -482,11 +482,11 @@ fun OddsMovementGraph(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "${(values.minOrNull()!! * 100).roundToInt()}%",
+                "${((values.minOrNull() ?: 0.0) * 100).roundToInt()}%",
                 style = MaterialTheme.typography.labelSmall
             )
             Text(
-                "${(values.maxOrNull()!! * 100).roundToInt()}%",
+                "${((values.maxOrNull() ?: 0.0) * 100).roundToInt()}%",
                 style = MaterialTheme.typography.labelSmall
             )
         }

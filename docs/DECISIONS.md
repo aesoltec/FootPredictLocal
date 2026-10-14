@@ -26,6 +26,13 @@
   AUCUN câblage : l’utilisateur avait écarté Sportmonks (payant) et le forfait
   gratuit ne couvre pas l’in-play cité. Réévaluer sur passage Pro explicite.
 
+## D-20261014-03 — Garde-fou anti-fuite de secrets
+- Logs Ktor cantonnés au debug (`NetworkModule`, `BuildConfig.DEBUG`).
+- Vérifié : aucune des deux valeurs n’apparaît sous `app/src`,
+  `supabase/`, `mission/` (grep le 2026-10-14 ; seule la clé Supabase
+  *publishable* reste dans `mission/api et ref.md`, exposée par nature
+  dans le binaire — risque accepté, inchangé).
+
 ## D-20261014-04 — Audit externe : statut jugé sur le marché proposé
 - **Constat vérifié ( Écart 2 CONCÉDÉ )** : `wasHit` ne validait que le 1X2
   alors que la colonne CSV présente le marché proposé (ex. BTTS-No sur 5-3
@@ -46,10 +53,20 @@
   (aucune invention côté script, vérifié dans `scrape-understat`). Coventry/Hull
   non vérifiables depuis les connaissances (saison future) → à recouper via la
   clé API-Sports désormais active, pas de conclusion sans preuve.
+  (Correctif auditeur lui-même : composition 26/27 validée à 100 %.)
 
-## D-20261014-03 — Garde-fou anti-fuite de secrets
-- Logs Ktor cantonnés au debug (`NetworkModule`, `BuildConfig.DEBUG`).
-- Vérifié : aucune des deux valeurs n’apparaît sous `app/src`,
-  `supabase/`, `mission/` (grep le 2026-10-14 ; seule la clé Supabase
-  *publishable* reste dans `mission/api et ref.md`, exposée par nature
-  dans le binaire — risque accepté, inchangé).
+## D-20261014-05 — Cycle audit général : dette + doublons + publication
+- **Audit `!!`** : 3 crashs potentiels supprimés (`fetchMergedFixturesFull`
+  toutes-sources-vides, `fetchMergedOdds` vide — crash au lancement hors-ligne
+  sans cache possible) + 2 hygiène (`OddsMovementGraph`, filtre redondant).
+  `CouponScreen` mort (0 appel) supprimé + imports.
+- **Doublons inter-synchros** : la meilleure source variant selon les synchros,
+  des lignes d’ID différents cohabitaient (« Hull »/« Hull City AFC », constaté
+  sur téléphone avec alertes doublées). `isSameFixture`/`dedupeFixtures` purs +
+  testés ; le dépôt garde les lignes existantes (historique intact) et écarte
+  les doublons entrants. Doublons déjà en base : conservés volontairement.
+- **Publication** : dépôt privé `aesoltec/FootPredictLocal`, branche
+  `release/v1.3.1-audit-fixes`, PR #1 vers `main` (revue utilisateur),
+  secrets/binaires exclus (vérifié : seul `local.properties.example`).
+- **Vérité unique Terminés** : un seul « Pronostic : X (N %) » (plus haut %),
+  sections par marché conservées (demande utilisateur, conflit apparent résolu).
