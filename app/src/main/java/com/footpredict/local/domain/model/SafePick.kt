@@ -18,11 +18,23 @@ enum class SafeKind { OVER15, UNDER35, DC_1X, DC_12, DC_X2 }
 /** Seuil du Safe : probabilité ≥ 88 % (exigence produit). */
 const val SAFE_MIN_CONFIDENCE = 0.88
 
+/** Plafond de jambes du Safe : 4 (exigence 2026-10-14). */
+const val SAFE_MAX_LEGS = 4
+
+/** Ligne sécurisée : marché dégradé + sa probabilité (cote estimée = 1/p). */
 data class SafePick(val kind: SafeKind, val probability: Double)
 
 /**
+ * Cote décimale ESTIMÉE = 1 / probabilité (pur) : les lignes dégradées
+ * (O1.5, U3.5, DC) n'ont pas de cotes scrapées — cote explicite, jamais
+ * une décimale inventée (affichée comme « estimée » à l'utilisateur).
+ */
+fun impliedOdds(probability: Double): Double? =
+    probability.takeIf { p -> p > 0.0 }?.let { 1.0 / it }
+
+/**
  * Dégrade le meilleur pick vers sa ligne sécurisée. Null si la donnée
- * requise manque (jamais d’invention).
+ * requise manque (jamais d'invention). Retourne aussi la cote estimée.
  */
 fun safeDowngrade(
     best: BestPick,
@@ -46,4 +58,10 @@ fun safeDowngrade(
     )
     MarketKind.DRAW -> SafePick(SafeKind.DC_12, (1.0 - draw).coerceIn(0.0, 1.0))
     else -> null
+}
+
+/** Borne la cote estimée aux valeurs demandées (1.5 – 5.0) pour l'affichage. */
+fun oddsInRange(probability: Double, minOdds: Double = 1.5, maxOdds: Double = 5.0): Boolean {
+    val o = impliedOdds(probability) ?: return false
+    return o in minOdds..maxOdds
 }

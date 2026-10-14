@@ -139,7 +139,7 @@ fun DailyCouponScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     val stake = recommendedStake(
-                        stakingStrategy, coupon.avgConfidence, coupon.totalOdds,
+                        stakingStrategy, coupon.avgConfidence, coupon.totalOdds ?: 1.0,
                         bankrollCapital, flatStake
                     )
                     Text(
@@ -235,7 +235,10 @@ fun DailyCouponScreen(
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         Text(
-                            stringResource(R.string.safe_no_odds),
+                            stringResource(
+                                R.string.safe_odds,
+                                "%.2f".format(1.0 / safeCoupon.legs.map { it.probability }.average())
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -257,7 +260,7 @@ fun DailyCouponScreen(
                             )
                         }
                         Text(
-                            "${leg.label} : ${(leg.probability * 100).roundToInt()}%",
+                            "${leg.label} : ${(leg.probability * 100).roundToInt()}% @ ${"%.2f".format(1.0 / leg.probability)}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.tertiary

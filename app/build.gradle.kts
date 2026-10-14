@@ -112,4 +112,6 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("io.ktor:ktor-client-mock:2.3.12")
 }

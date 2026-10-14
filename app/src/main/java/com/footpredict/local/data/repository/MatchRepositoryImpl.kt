@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -44,6 +45,13 @@ class MatchRepositoryImpl @Inject constructor(
         private const val CACHE_MAX_AGE_MS = 6L * 60L * 60L * 1000L
     }
 
+    /**
+     * Audit ANR 2026-10-14 : tout le travail amont de ce flux (réseau Ktor —
+     * dont la désérialisation JSON qui s’exécute dans le contexte appelant —,
+     * Room, fusions) bascule en IO via [flowOn]. Seules les émissions restent
+     * côté collecteur (UI). Sans ça, 6 ligues en parallèle bloquaient le
+     * thread principal > 5 s (ANR constaté sur X658E).
+     */
     override fun getEnrichedMatches(leagueId: Int, season: Int): Flow<Resource<List<EnrichedMatch>>> =
         flow {
             emit(Resource.Loading)
@@ -187,7 +195,7 @@ class MatchRepositoryImpl @Inject constructor(
                     emit(Resource.Error(e.message ?: "Erreur réseau"))
                 }
             }
-        }
+        }.flowOn(Dispatchers.IO)
 
     /**
      * Recalcule les ratings Elo depuis les matchs terminés (triés par date),
@@ -248,8 +256,18 @@ class MatchRepositoryImpl @Inject constructor(
      * protégés, clé à protéger, quota à partager : tout passe par la fonction.
      */
     override suspend fun validateLiveMatches(leagueId: Int, season: Int): Int {
+        // Audit ANR : corps en IO (fetch + parse + Room), comme le flux sync.
         return try {
-            val nowMs = System.currentTimeMillis()
+            withContext(Dispatchers.IO) {
+                validateLiveMatchesIo(leagueId, season)
+            }
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    private suspend fun validateLiveMatchesIo(leagueId: Int, season: Int): Int {
+        val nowMs = System.currentTimeMillis()
             val cached = local.observeMatchesByLeague(leagueId).first()
             // Guet : en cours + coups d’envoi imminents/récents non confirmés.
             val watch = cached.filter { entity ->
@@ -270,10 +288,7 @@ class MatchRepositoryImpl @Inject constructor(
                 } ?: continue
                 if (applyLiveUpdate(s, match, nowMs)) applied++
             }
-            applied
-        } catch (_: Exception) {
-            0
-        }
+            return applied
     }
 
     /**

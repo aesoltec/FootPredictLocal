@@ -26,7 +26,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -59,11 +58,8 @@ fun PredictionDashboardScreen(
     // NOTE : le sélecteur d’export SAF vit dans AppNav (tous onglets) :
     // le laisser ici ouvrirait DEUX sélecteurs depuis l’onglet Matchs.
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.app_name)) })
-        }
-    ) { padding ->
+    // Barre de titre portée par AppNav (titre par vue) : pas de doublon ici.
+    Scaffold { padding ->
         // Tirer-vers-le-bas = recharger (même chemin que « Réessayer » :
         // cache Room si frais, resync si périmé, jamais d’invention).
         // Un seul cercle : l’indicateur pull-to-refresh est masqué au premier
