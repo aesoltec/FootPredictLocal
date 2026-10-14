@@ -1,0 +1,15 @@
+# Secrets locaux — NE JAMAIS committer (ni clés API, ni URL interne).
+local.properties
+keystore.properties
+keystore/
+.supabase/
+# Build
+build/
+.gradle/
+.kotlin/
+*.apk
+*.aab
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
