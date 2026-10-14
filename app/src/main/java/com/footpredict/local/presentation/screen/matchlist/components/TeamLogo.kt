@@ -117,9 +117,11 @@ private val CLUB_COLORS = listOf(
     Color(0xFF4E342E), Color(0xFF37474F)
 )
 
+private val CLUB_NAME_CLEAN = Regex("[^a-z0-9]")
+
 /** Couleur stable par club (hash du nom normalisé). */
 fun clubColor(teamName: String): Color {
-    val n = teamName.lowercase().replace(Regex("[^a-z0-9]"), "")
+    val n = teamName.lowercase().replace(CLUB_NAME_CLEAN, "")
     var h = 0
     for (c in n) h = 31 * h + c.code
     return CLUB_COLORS[kotlin.math.abs(h) % CLUB_COLORS.size]

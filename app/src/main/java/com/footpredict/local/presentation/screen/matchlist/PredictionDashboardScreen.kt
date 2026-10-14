@@ -66,8 +66,10 @@ fun PredictionDashboardScreen(
     ) { padding ->
         // Tirer-vers-le-bas = recharger (même chemin que « Réessayer » :
         // cache Room si frais, resync si périmé, jamais d’invention).
+        // Un seul cercle : l’indicateur pull-to-refresh est masqué au premier
+        // chargement (le squelette couvre déjà ce cas).
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
+            isRefreshing = uiState.isLoading && uiState.matches.isNotEmpty(),
             onRefresh = { viewModel.retry() },
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {

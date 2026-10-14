@@ -33,10 +33,11 @@ class TeamLogoStore @Inject constructor(
     companion object {
         const val DIR_NAME = "team_logos"
         const val MAX_LOGO_BYTES = 512 * 1024L
+        private val NON_ALNUM = Regex("[^a-z0-9]")
 
         /** Nom de fichier stable depuis le nom du club (pur, testé). */
         fun fileBaseName(teamName: String): String {
-            val norm = teamName.lowercase().replace(Regex("[^a-z0-9]"), "")
+            val norm = teamName.lowercase().replace(NON_ALNUM, "")
             return norm.ifBlank { "club" }
         }
 

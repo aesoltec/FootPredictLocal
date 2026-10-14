@@ -195,10 +195,14 @@ async function fetchEspnLeague(espn: string, leagueId: number, errors: string[])
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const events = Array.isArray(data?.events) ? data.events : [];
+    // v1.3.3 : on remonte aussi les TERMINÉS DU JOUR (state "post") — même
+    // payload, zéro quota supplémentaire. L’app y trouve ses bascules FT
+    // rapides sans appeler football-data.org en direct.
+    const dayStart = Date.now() - 24 * 3600 * 1000;
     for (const raw of events) {
       const e = raw as Record<string, unknown>;
       const state = ((e.status as Record<string, unknown> | undefined)?.type as Record<string, unknown> | undefined)?.state;
-      if (state !== "in") continue; // scoreboard : seuls les "en cours" nous intéressent ici
+      if (state !== "in" && state !== "post") continue; // ni en cours ni fini → ignoré
       const type = (e.status as Record<string, unknown> | undefined)?.type as Record<string, unknown> | undefined;
       const comp = ((e.competitions ?? []) as Record<string, unknown>[])[0];
       if (!comp) continue;
@@ -210,6 +214,9 @@ async function fetchEspnLeague(espn: string, leagueId: number, errors: string[])
       if (typeof homeName !== "string" || typeof awayName !== "string") continue;
       const dateTs = Math.floor(new Date(e.date as string).getTime() / 1000);
       if (!Number.isFinite(dateTs) || dateTs <= 0) continue;
+      const isLive = state === "in";
+      // Terminés : aujourd’hui seulement (pas tout l’historique).
+      if (!isLive && dateTs * 1000 < dayStart) continue;
       const detail = typeof type?.shortDetail === "string" ? type.shortDetail : null;
       const period = intOrNull((e.status as Record<string, unknown> | undefined)?.period);
       const logoOf = (c: Record<string, unknown> | undefined) => {
@@ -222,7 +229,7 @@ async function fetchEspnLeague(espn: string, leagueId: number, errors: string[])
         match_id: `espn:${leagueId}-${normalizeTeamName(homeName)}-${normalizeTeamName(awayName)}-${dateTs}`,
         league_id: leagueId,
         season: seasonOf(dateTs),
-        status_short: mapEspnDetail(detail, period),
+        status_short: isLive ? mapEspnDetail(detail, period) : "FT",
         status_detail: detail,
         date_ts: dateTs,
         home: { id: null, name: homeName, logo: logoOf(home) },
