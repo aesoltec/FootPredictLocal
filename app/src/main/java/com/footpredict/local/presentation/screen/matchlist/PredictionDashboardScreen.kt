@@ -167,7 +167,8 @@ fun PredictionDashboardScreen(
                                         upcomingDays = bundle.upcomingDays,
                                         pastDays = bundle.pastDays
                                     )
-                                }
+                                },
+                                onReset = { viewModel.resetFilters() }
                             )
                         }
 
@@ -327,7 +328,8 @@ private fun FilterBar(
     minConfidence: Float,
     windows: FilterWindows,
     dateRangeMs: Pair<Long, Long>?,
-    onValidate: (FilterBundle) -> Unit
+    onValidate: (FilterBundle) -> Unit,
+    onReset: () -> Unit
 ) {
     var draftLeague by remember(leagueId) { mutableStateOf(leagueId) }
     var draftQuery by remember(query) { mutableStateOf(query) }
@@ -356,12 +358,19 @@ private fun FilterBar(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                MatchPredictionViewModel.LEAGUES.forEach { id ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.filter_league_all)) },
+                    onClick = {
+                        expanded = false
+                        draftLeague = ALL_LEAGUES
+                    }
+                )
+                com.footpredict.local.data.remote.fixture.ApiFootballLeagues.ALL.forEach { league ->
                     DropdownMenuItem(
-                        text = { Text(leagueName(id)) },
+                        text = { Text(league.nameFr) },
                         onClick = {
                             expanded = false
-                            draftLeague = id
+                            draftLeague = league.id
                         }
                     )
                 }
@@ -459,24 +468,15 @@ private fun FilterBar(
 
         androidx.compose.material3.OutlinedButton(
             onClick = {
-                draftLeague = 39
+                // Réinitialiser = tout réafficher (aucun filtre actif).
+                draftLeague = ALL_LEAGUES
                 draftQuery = ""
                 draftStatus = StatusFilter.ALL
                 draftConf = 0f
                 draftRange = null
                 draftUpcoming = FilterWindows.DEFAULT_UPCOMING_DAYS.toFloat()
                 draftPast = FilterWindows.DEFAULT_PAST_DAYS.toFloat()
-                onValidate(
-                    FilterBundle(
-                        leagueId = 39,
-                        query = "",
-                        status = StatusFilter.ALL,
-                        minConfidence = 0f,
-                        rangeMs = null,
-                        upcomingDays = FilterWindows.DEFAULT_UPCOMING_DAYS,
-                        pastDays = FilterWindows.DEFAULT_PAST_DAYS
-                    )
-                )
+                onReset()
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -549,15 +549,9 @@ private fun StatusChip(    filter: StatusFilter,
 }
 
 @Composable
-private fun leagueName(leagueId: Int): String = when (leagueId) {
-    39 -> stringResource(R.string.league_39)
-    140 -> stringResource(R.string.league_140)
-    135 -> stringResource(R.string.league_135)
-    78 -> stringResource(R.string.league_78)
-    61 -> stringResource(R.string.league_61)
-    2 -> stringResource(R.string.league_2)
-    else -> stringResource(R.string.league_39)
-}
+private fun leagueName(leagueId: Int): String =
+    com.footpredict.local.data.remote.fixture.ApiFootballLeagues.nameFr(leagueId)
+        ?: stringResource(R.string.filter_league_all)
 
 @Composable
 /**

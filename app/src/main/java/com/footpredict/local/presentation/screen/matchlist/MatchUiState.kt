@@ -8,6 +8,9 @@ import com.footpredict.local.domain.model.PerformanceStats
 
 enum class StatusFilter { ALL, UPCOMING, FINISHED }
 
+/** Ligue « toutes » : aucun filtre de ligue (défaut de l’écran Matchs). */
+const val ALL_LEAGUES = -1
+
 /** Confrontations directes : victoires A / nuls / victoires B (A = domicile du match). */
 data class H2HStats(
     val homeWins: Int = 0,
@@ -56,9 +59,12 @@ data class MatchUiState(
     val isLiveRefreshing: Boolean = false,
     val liveAutoRefreshEnabled: Boolean = true,
     val lastLiveRefreshAt: Long? = null,
-    val leagueId: Int = 39,
+    val leagueId: Int = ALL_LEAGUES,
     val query: String = "",
     val statusFilter: StatusFilter = StatusFilter.ALL,
+    /** Vrai seulement après « Valider les filtres » (opt-in strict : par
+     *  défaut, aucune fenêtre/query/confiance ne filtre l’affichage). */
+    val filtersApplied: Boolean = false,
     val minConfidence: Float = 0f,
     val topPicks: List<TopPick> = emptyList(),
     val avoidPicks: List<TopPick> = emptyList(),

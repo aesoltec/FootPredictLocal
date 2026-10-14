@@ -127,3 +127,7 @@
   l’existant, on bloque les nouveaux) ; BTTS-No 33 % vrai + Under 30 % + confiance
   non discriminante → re-calibration à décider sur données (pas à l’aveugle) ;
   `MONEYWAY` sans producteur (inoffensif) ; wrapper jar manquant (stub, inchangé).
+- **Suivi backend (hors app)** : étendre le scraping aux ~34 nouvelles compétitions
+  du registre (`fetch-espn` couvre por.1/ned.1/uefa.champions/uefa.europa/bra.1/usa.1…,
+  gratuit sans clé) : nouvelles entrées LEAGUES + cron + vérification doublons ;
+  revalider les IDs API-Football via `/leagues`.

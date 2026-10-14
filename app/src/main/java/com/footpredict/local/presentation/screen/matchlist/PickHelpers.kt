@@ -16,15 +16,9 @@ object PickHelpers {
     const val MAX_TOP_PICKS = 5
     const val MAX_MARKET_PICKS = 2
 
-    /** Noms d’affichage des compétitions (noms propres, stables). */
-    val LEAGUE_NAMES = mapOf(
-        39 to "Premier League",
-        140 to "La Liga",
-        135 to "Serie A",
-        78 to "Bundesliga",
-        61 to "Ligue 1",
-        2 to "Ligue des Champions"
-    )
+    /** Noms d’affichage des compétitions (registre unique vérifié). */
+    val LEAGUE_NAMES: Map<Int, String> =
+        com.footpredict.local.data.remote.fixture.ApiFootballLeagues.names()
 
     private val PREMATCH = setOf("NS", "TBD", "PST")
 

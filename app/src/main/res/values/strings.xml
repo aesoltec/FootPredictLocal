@@ -39,12 +39,7 @@
     </plurals>
     <string name="live_rom_label">Fin de match estimée (score + temps)</string>
     <string name="filter_league">Championnat</string>
-    <string name="league_39">Premier League (Angleterre)</string>
-    <string name="league_140">La Liga (Espagne)</string>
-    <string name="league_135">Serie A (Italie)</string>
-    <string name="league_78">Bundesliga (Allemagne)</string>
-    <string name="league_61">Ligue 1 (France)</string>
-    <string name="league_2">Ligue des Champions (Europe)</string>
+    <string name="filter_league_all">Toutes les ligues</string>
     <string name="search_teams">Rechercher une équipe…</string>
     <string name="filter_all">Tous</string>
     <string name="filter_upcoming">À venir</string>

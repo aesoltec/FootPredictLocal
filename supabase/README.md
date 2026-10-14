@@ -86,3 +86,23 @@ toutes seules (`RemoteConfig`) et l'agrégateur prend le relais scraping
   (l'Ensemble redistribue sur Dixon-Coles + Elo, value bets désactivés).
 - **Live** : le scraping ne donne que NS/FT (pas de temps réel) —
   le polling live de l'app reste alimenté par API-Football quand configuré.
+
+## 4. Live mutualisé : fonction get-live-scores (v1.3.2)
+
+Scores en direct ~40 ligues, clé API-Football protégée côté serveur.
+
+1. **Tables** : Dashboard → SQL Editor → coller et exécuter
+   `supabase/migrations/0002_live_scores.sql` (cache 90 s + compteur quota,
+   RLS sans policy = service_role seul, aucun accès anon direct).
+2. **Secret** : Dashboard → Project Settings → Edge Functions → Secrets →
+   ajouter `API_FOOTBALL_KEY` = votre clé gratuite API-Sports
+   (jamais dans le code ; sans elle, seul le flux ESPN gratuit répond).
+3. **Fonction** : Dashboard → Edge Functions → New Function → nom
+   `get-live-scores` → coller `supabase/functions/get-live-scores/index.ts`
+   → Deploy. (Le déploiement CLI exige la permission `edge_functions_read`,
+   absente du token local : passer par le Dashboard.)
+4. **Vérif** : `curl -H "apikey: <ANON>" -H "Authorization: Bearer <ANON>"    https://<ref>.supabase.co/functions/v1/get-live-scores` → JSON
+   `{matches, cached, quota_remaining, errors}` (slugs ESPN invalides
+   listés dans `errors`, sans impact).
+5. **Quota** : 40 appels premium/jour max (table `api_quota_day`), cache 90 s
+   partagé ; épuisé → cache périmé + ESPN seuls.
