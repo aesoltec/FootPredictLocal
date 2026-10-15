@@ -105,9 +105,9 @@
     <string name="coupon_share">Partager</string>
     <string name="coupon_stake">Mise recommandée pour ce coupon : %1$s €</string>
     <string name="safe_title">Safe du jour</string>
-    <string name="safe_empty" formatted="false">Aucun pari sécurisé à 88 % aujourd’hui. L’algorithme sécurise votre capital.</string>
+    <string name="safe_empty" formatted="false">Aucun pari sécurisé aujourd’hui. L’algorithme sécurise votre capital.</string>
     <string name="safe_confidence">Fiabilité moyenne : %1$d %%</string>
-    <string name="safe_no_odds">Sans cote (probabilités seules)</string>
+    <string name="safe_odds">Cote estimée : %1$s — Statistique Pure (1 / probabilité)</string>
     <string name="settled_won">GAGNÉ</string>
     <string name="settled_lost">PERDU</string>
     <string name="settled_predicted">Pronostic : %1$s (%2$d %%)</string>

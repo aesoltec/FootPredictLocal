@@ -10,15 +10,17 @@ import com.footpredict.local.data.remote.live.SupabaseLiveScoresDataSource
 import com.footpredict.local.data.local.entity.EloEntity
 import com.footpredict.local.data.local.entity.MatchEntity
 import com.footpredict.local.data.mapper.EntityMappers.toDomain
-import com.footpredict.local.data.remote.fixture.FixtureRemoteDataSource
 import com.footpredict.local.domain.model.EnrichedMatch
 import com.footpredict.local.domain.model.Resource
 import com.footpredict.local.domain.repository.MatchRepository
 import com.footpredict.local.domain.usecase.EloRatingUseCase
 import com.footpredict.local.domain.usecase.ValidateLiveMatchesUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -34,7 +36,6 @@ class MatchRepositoryImpl @Inject constructor(
     private val local: LocalDataSource,
     private val aggregator: DataFusionAggregator,
     private val eloModel: EloRatingUseCase,
-    private val fixtureSources: Set<@JvmSuppressWildcards FixtureRemoteDataSource>,
     private val liveValidator: ValidateLiveMatchesUseCase,
     private val logoStore: TeamLogoStore,
     private val supabaseLive: SupabaseLiveScoresDataSource
@@ -44,6 +45,13 @@ class MatchRepositoryImpl @Inject constructor(
         private const val CACHE_MAX_AGE_MS = 6L * 60L * 60L * 1000L
     }
 
+    /**
+     * Audit ANR 2026-10-14 : tout le travail amont de ce flux (réseau Ktor —
+     * dont la désérialisation JSON qui s’exécute dans le contexte appelant —,
+     * Room, fusions) bascule en IO via [flowOn]. Seules les émissions restent
+     * côté collecteur (UI). Sans ça, 6 ligues en parallèle bloquaient le
+     * thread principal > 5 s (ANR constaté sur X658E).
+     */
     override fun getEnrichedMatches(leagueId: Int, season: Int): Flow<Resource<List<EnrichedMatch>>> =
         flow {
             emit(Resource.Loading)
@@ -89,10 +97,15 @@ class MatchRepositoryImpl @Inject constructor(
                 // (« Hull » vs « Hull City AFC »). On garde les lignes DÉJÀ en
                 // base (historique soldé intact) et on écarte les doublons
                 // entrants — jamais l’inverse (pas d’orphelins).
-                val incoming = dedupeFixtures(mergeXg(merged.fixtures, merged.alternates))
-                    .filter { inc ->
-                        cachedEntities.none { it.id != inc.id && isSameFixture(it, inc) }
+                // CPU lourd (comparaisons floues) déporté hors du thread
+                // principal (audit ANR 2026-10-14 : plusieurs secondes de freeze).
+                val incoming = withContext(Dispatchers.Default) {
+                    val merged = dedupeFixtures(mergeXg(merged.fixtures, merged.alternates))
+                    val known = cachedEntities.toList()
+                    merged.filter { inc ->
+                        known.none { it.id != inc.id && isSameFixture(it, inc) }
                     }
+                }
                 val fixtures = incoming.ifEmpty { cachedEntities }
 
                 if (fixtures.isEmpty()) {
@@ -182,7 +195,7 @@ class MatchRepositoryImpl @Inject constructor(
                     emit(Resource.Error(e.message ?: "Erreur réseau"))
                 }
             }
-        }
+        }.flowOn(Dispatchers.IO)
 
     /**
      * Recalcule les ratings Elo depuis les matchs terminés (triés par date),
@@ -224,24 +237,37 @@ class MatchRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Synchro live ciblée (v1.3.2) : d’abord le flux mutualisé Supabase
-     * `get-live-scores` (~40 ligues, cache serveur 90 s partagé, clé API
-     * protégée côté serveur), puis le chemin direct football-data.org
-     * (purge EN_ATTENTE, bascules FT). 1+1 appels max par passage ; sans clé
-     * ni réseau → 0 silencieux (hors-ligne intact).
+     * Synchro live EXCLUSIVE via la fonction mutualisée Supabase
+     * `get-live-scores` (v1.3.3, cahier des charges : aucune requête live
+     * directe vers des APIs tierces — clé API protégée côté serveur, quota
+     * 100/j partagé via cache 90 s + plafond 40/j).
+     *
+     * La fonction renvoie en-cours + terminés du jour (~35 ligues ESPN +
+     * top-up premium) : statuts/scores en direct, bascule NS→live au coup
+     * d’envoi, FT rapide. Fonction non déployée / hors-ligne / quota → 0
+     * silencieux (hors-ligne et synchros 6 h intacts).
+     * Purge des reports lointains : reprise par les synchros complètes.
+     *
      * Ne touche jamais aux matchs sans confirmation source (pas de score
      * inventé) ni aux FT en cache (pipeline settled propriétaire).
      *
-     * Quota : 1 appel max par passage (polling 30 s → 2/min < 10/min FD) +
-     * garde-fou [FdThrottle] ; sans clé FD → 0, silence (le reste de l’app
-     * reste utilisable hors-ligne).
-     *
-     * Note d’architecte : PAS de FotMob/SofaScore ici — endpoints non
-     * contractuels et protégés, impropres à une vérification fiable.
+     * Note d’architecte : PAS de FotMob/SofaScore ni d’appels directs aux
+     * APIs tierces depuis le téléphone — endpoints non contractuels et
+     * protégés, clé à protéger, quota à partager : tout passe par la fonction.
      */
     override suspend fun validateLiveMatches(leagueId: Int, season: Int): Int {
+        // Audit ANR : corps en IO (fetch + parse + Room), comme le flux sync.
         return try {
-            val nowMs = System.currentTimeMillis()
+            withContext(Dispatchers.IO) {
+                validateLiveMatchesIo(leagueId, season)
+            }
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    private suspend fun validateLiveMatchesIo(leagueId: Int, season: Int): Int {
+        val nowMs = System.currentTimeMillis()
             val cached = local.observeMatchesByLeague(leagueId).first()
             // Guet : en cours + coups d’envoi imminents/récents non confirmés.
             val watch = cached.filter { entity ->
@@ -249,38 +275,20 @@ class MatchRepositoryImpl @Inject constructor(
                 ValidateLiveMatchesUseCase.warrantsWatch(entity.statusShort, elapsedMin)
             }
             if (watch.isEmpty()) return 0
+            // EXCLUSIF fonction (cahier des charges v1.3.3) : plus aucun appel
+            // live direct aux APIs tierces. 1 appel couvre toutes les ligues.
             var applied = 0
-            // 1. Flux live mutualisé Supabase (~40 ligues, cache serveur 90 s,
-            //    clé API protégée côté serveur) : 1 appel couvre tout.
-            try {
-                val live = supabaseLive.fetchLiveScores()
-                for (s in watch) {
-                    val match = live.firstOrNull { f ->
-                        f.leagueId == s.leagueId &&
-                            kotlin.math.abs(f.dateTimestamp - s.dateTimestamp) < 86400 &&
-                            sameTeams(f, s)
-                    } ?: continue
-                    if (applyLiveUpdate(s, match, nowMs)) applied++
-                }
-            } catch (_: Exception) {
-            }
-            // 2. Chemin historique football-data.org direct (purge EN_ATTENTE,
-            //    bascules FT confirmées) — conservé en second.
-            val fd = fixtureSources.firstOrNull { it.sourceName == "football-data.org" }
-                ?: return applied
-            val fresh = fd.fetchFixtures(leagueId, season)
-            if (fresh.isEmpty()) return applied
+            // fetchLiveScores ne lève jamais (vide en cas d’échec) : pas de try.
+            val live = supabaseLive.fetchLiveScores()
             for (s in watch) {
-                val match = fresh.firstOrNull { f ->
-                    kotlin.math.abs(f.dateTimestamp - s.dateTimestamp) < 86400 &&
+                val match = live.firstOrNull { f ->
+                    f.leagueId == s.leagueId &&
+                        kotlin.math.abs(f.dateTimestamp - s.dateTimestamp) < 86400 &&
                         sameTeams(f, s)
                 } ?: continue
                 if (applyLiveUpdate(s, match, nowMs)) applied++
             }
-            applied
-        } catch (_: Exception) {
-            0
-        }
+            return applied
     }
 
     /**
@@ -318,7 +326,13 @@ class MatchRepositoryImpl @Inject constructor(
 
     private fun norm(name: String): String =
         name.lowercase()
-            .replace(Regex("[^a-z0-9 ]"), " ")
-            .replace(Regex("\\s+"), " ")
+            .replace(NormRegex.NON_ALNUM, " ")
+            .replace(NormRegex.SPACES, " ")
             .trim()
+}
+
+/** Regex mutualisées (audit ANR 2026-10-14 : jamais recompilées en boucle). */
+private object NormRegex {
+    val NON_ALNUM = Regex("[^a-z0-9 ]")
+    val SPACES = Regex("\\s+")
 }

@@ -444,7 +444,8 @@ class MatchPredictionViewModel @Inject constructor(
                 val market = em.odds?.let { marketModel(it) }
                 val elo = eloModel(em.fixture, em.eloHome ?: 1500.0, em.eloAway ?: 1500.0)
                 map[em.fixture.id] = ensemble(em.fixture.id, dc, market, elo)
-                if (index % 5 == 0 || index == upcomingPool.lastIndex) {
+                // Progression clairsemée (audit ANR : pas de recomposition à chaque carte).
+                if (index % 20 == 0 || index == upcomingPool.lastIndex) {
                     val snapshot = map.toMap()
                     _uiState.update {
                         it.copy(

@@ -7,6 +7,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +46,7 @@ private val TABS = listOf(
  * Navigation v1.3.0 : Accueil (coupon) / Matchs / Terminés / Stats / Réglages,
  * détail plein écran avec flèche retour. Un seul ViewModel partagé.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AppNav(
     viewModel: MatchPredictionViewModel = hiltViewModel(),
@@ -55,6 +57,13 @@ fun AppNav(
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
+
+    // Force l'onglet Coupon au premier lancement (ignorer l'état restauré).
+    LaunchedEffect(Unit) {
+        if (route != "coupon" && route != null) {
+            nav.navigate("coupon") { popUpTo(nav.graph.findStartDestination().id) { inclusive = true } }
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.exportMessage) {
@@ -77,6 +86,28 @@ fun AppNav(
     }
 
     Scaffold(
+        topBar = {
+            // Titre par vue (exigence : plus de « HB₂AO » partout).
+            // Masqué sur le détail (sa propre barre nomme le match).
+            if (route != "detail/{id}") {
+                androidx.compose.material3.TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(
+                                when (route) {
+                                    "matchs" -> R.string.nav_matches
+                                    "finished" -> R.string.nav_finished
+                                    "stats" -> R.string.stats_title
+                                    "settings" -> R.string.nav_settings
+                                    else -> R.string.coupon_title
+                                }
+                            ),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+            }
+        },
         bottomBar = {
             if (route != "detail/{id}") {
                 NavigationBar {

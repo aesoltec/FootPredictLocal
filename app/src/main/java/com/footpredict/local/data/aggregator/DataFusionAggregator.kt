@@ -44,10 +44,13 @@ fun mergeXg(winners: List<MatchEntity>, alternates: List<MatchEntity>): List<Mat
     }
 }
 
+private val NON_ALNUM = Regex("[^a-z0-9 ]")
+private val SPACES = Regex("\\s+")
+
 private fun norm(name: String): String =
     name.lowercase()
-        .replace(Regex("[^a-z0-9 ]"), " ")
-        .replace(Regex("\\s+"), " ")
+        .replace(NON_ALNUM, " ")
+        .replace(SPACES, " ")
         .trim()
 
 private fun namesMatch(a: String, b: String): Boolean {
@@ -81,11 +84,17 @@ fun isSameFixture(a: MatchEntity, b: MatchEntity): Boolean {
  * Déduplique en gardant la PREMIÈRE occurrence (pur, testé) : l’historique
  * soldé référence les IDs, on ne remplace donc jamais une ligne existante
  * par un doublon d’une autre source (pas de lignes orphelines).
+ *
+ * Audit ANR 2026-10-14 : groupé par jour calendaire (O(n²/jour) au lieu
+ * d’O(n²)) — 400 matchs comparés 2 à 2 avec regex recompilées bloquaient
+ * le thread principal plusieurs secondes.
  */
 fun dedupeFixtures(fixtures: List<MatchEntity>): List<MatchEntity> {
     val kept = mutableListOf<MatchEntity>()
-    for (f in fixtures) {
-        if (kept.none { isSameFixture(it, f) }) kept += f
+    for ((_, day) in fixtures.groupBy { it.dateTimestamp / 86400 }) {
+        for (f in day) {
+            if (kept.none { isSameFixture(it, f) }) kept += f
+        }
     }
     return kept
 }

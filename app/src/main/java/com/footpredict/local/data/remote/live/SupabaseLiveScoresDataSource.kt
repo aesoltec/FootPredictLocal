@@ -7,6 +7,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
@@ -27,15 +29,24 @@ class SupabaseLiveScoresDataSource @Inject constructor(
     private val client: HttpClient
 ) {
 
-    suspend fun fetchLiveScores(): List<MatchEntity> {
-        if (!RemoteConfig.isSupabaseConfigured()) return emptyList()
-        val response: LiveScoresResponse = client
-            .get("${BuildConfig.SUPABASE_URL}/functions/v1/get-live-scores") {
-                header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-                header("Authorization", "Bearer ${BuildConfig.SUPABASE_ANON_KEY}")
-            }.body()
-        val now = System.currentTimeMillis()
-        return response.matches.mapNotNull { it.toEntity(now) }
+    /**
+     * Appel asynchrone à l’Edge Function (cahier des charges : Coroutines +
+     * `Dispatchers.IO`). Échec quelconque (fonction non déployée, hors-ligne,
+     * quota) → liste vide, jamais d’exception vers l’appelant.
+     */
+    suspend fun fetchLiveScores(): List<MatchEntity> = withContext(Dispatchers.IO) {
+        if (!RemoteConfig.isSupabaseConfigured()) return@withContext emptyList()
+        try {
+            val response: LiveScoresResponse = client
+                .get("${BuildConfig.SUPABASE_URL}/functions/v1/get-live-scores") {
+                    header("apikey", BuildConfig.SUPABASE_ANON_KEY)
+                    header("Authorization", "Bearer ${BuildConfig.SUPABASE_ANON_KEY}")
+                }.body()
+            val now = System.currentTimeMillis()
+            response.matches.mapNotNull { it.toEntity(now) }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 }
 
