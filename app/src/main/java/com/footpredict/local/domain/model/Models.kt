@@ -96,7 +96,14 @@ data class MatchPrediction(
     val lambdaHome: Double,
     val lambdaAway: Double,
     val bttsYesProb: Double = 0.5,
-    val bttsNoProb: Double = 0.5
+    val bttsNoProb: Double = 0.5,
+    /**
+     * Lignes sécurisées v1.3.2 (Safe du jour) : toujours calculées par le
+     * moteur réel ; les défauts ne servent qu’aux instances de test
+     * construites à la main (jamais en production).
+     */
+    val over15Prob: Double = 0.75,
+    val over35Prob: Double = 0.35
 )
 
 /** Prédiction marché (cotes implicites). */
@@ -140,5 +147,8 @@ data class EnsemblePrediction(
     val market: MarketPrediction?,
     val elo: EloPrediction?,
     val valueBets: List<ValueBet> = emptyList(),
-    val bttsYesProb: Double? = null
+    val bttsYesProb: Double? = null,
+    /** Lignes sécurisées v1.3.2 (retransmises du Dixon-Coles, null si absentes). */
+    val over15Prob: Double? = null,
+    val over35Prob: Double? = null
 )

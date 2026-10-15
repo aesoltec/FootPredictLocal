@@ -15,7 +15,10 @@ object FdCompetitions {
         88 to "DED",   // Eredivisie
         94 to "PPL",   // Primeira Liga
         41 to "ELC",   // Championship
-        2 to "CL"      // Champions League
+        2 to "CL",     // Champions League
+        4 to "EC",     // Euro (plan gratuit)
+        71 to "BSA",   // Brasileirão (plan gratuit)
+        1 to "WC"      // Coupe du monde (plan gratuit)
     )
 
     fun codeFor(leagueId: Int): String? = CODES[leagueId]

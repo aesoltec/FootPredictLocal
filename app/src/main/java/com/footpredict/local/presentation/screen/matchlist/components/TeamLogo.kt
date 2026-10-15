@@ -63,12 +63,16 @@ fun TeamLogo(
         return
     }
     val data = localFile ?: logoUrl
+    // Audit OOM 2026-10-14 (X658E, heap 128 Mo) : décodage borné à 128 px
+    // (affiché 28–36 dp) — un SVG fournisseur en pleine taille native coûtait
+    // ~10 Mo à lui seul. Le fichier local reste intact ; hors-ligne inchangé.
     SubcomposeAsyncImage(
         model = remember(data) {
             ImageRequest.Builder(context)
                 .data(data)
                 .memoryCacheKey(data.toString())
                 .diskCacheKey(data.toString())
+                .size(128)
                 .crossfade(true)
                 .build()
         },

@@ -91,6 +91,8 @@ class CalculateDixonColesUseCase @Inject constructor() {
         var pAway = 0.0
         var pOver25 = 0.0
         var pBttsYes = 0.0
+        var pOver15 = 0.0
+        var pOver35 = 0.0
         var totalMass = 0.0
 
         for (x in 0..MAX_GOALS) {
@@ -106,6 +108,8 @@ class CalculateDixonColesUseCase @Inject constructor() {
                     else -> pAway += p
                 }
                 if (x + y > 2) pOver25 += p
+                if (x + y > 1) pOver15 += p
+                if (x + y > 3) pOver35 += p
                 if (x >= 1 && y >= 1) pBttsYes += p
             }
         }
@@ -116,6 +120,8 @@ class CalculateDixonColesUseCase @Inject constructor() {
             pDraw /= totalMass
             pAway /= totalMass
             pOver25 /= totalMass
+            pOver15 /= totalMass
+            pOver35 /= totalMass
             pBttsYes /= totalMass
         }
 
@@ -133,7 +139,9 @@ class CalculateDixonColesUseCase @Inject constructor() {
             lambdaHome = lambdaHome,
             lambdaAway = lambdaAway,
             bttsYesProb = bttsYesAdj,
-            bttsNoProb = (1.0 - bttsYesAdj).coerceIn(0.0, 1.0)
+            bttsNoProb = (1.0 - bttsYesAdj).coerceIn(0.0, 1.0),
+            over15Prob = pOver15.coerceIn(0.0, 1.0),
+            over35Prob = pOver35.coerceIn(0.0, 1.0)
         )
     }
 

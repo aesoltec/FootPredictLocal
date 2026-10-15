@@ -15,7 +15,8 @@ import javax.inject.Inject
  * Point d’entrée de l’application. Initialise Hilt, la fabrique
  * des Workers (notifications push) et le chargeur d’images Coil :
  * SVG (blasons football-data.org) + cache disque agressif (512 Mo) +
- * cache mémoire (25 %) → 0 ms au réaffichage, sans appel réseau.
+ * cache mémoire plafonné (16 Mo) + décodage borné 128 px → 0 ms au
+ * réaffichage, sans appel réseau, sans OOM sur petit heap.
  */
 @HiltAndroidApp
 class FootPredictApplication : Application(), Configuration.Provider, ImageLoaderFactory {
@@ -32,8 +33,10 @@ class FootPredictApplication : Application(), Configuration.Provider, ImageLoade
         ImageLoader.Builder(this)
             .components { add(SvgDecoder.Factory()) }
             .memoryCache {
+                // Audit OOM 2026-10-14 : 16 Mo fixes au lieu de 25 % du heap
+                // (32 Mo sur petit appareil = pression mortelle avec 6 ligues).
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
+                    .maxSizeBytes(16 * 1024 * 1024)
                     .build()
             }
             .diskCache {

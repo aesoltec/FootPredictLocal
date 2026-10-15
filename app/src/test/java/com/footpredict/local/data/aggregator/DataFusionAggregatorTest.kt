@@ -59,6 +59,57 @@ class DataFusionAggregatorTest {
     }
 
     @Test
+    fun `all empty sources yield empty without crashing`() = runTest {
+        // Audit 2026-10-14 : hors-ligne + cache vide → liste vide honnête,
+        // pas de NPE sur maxByOrNull!! (ancien crash au lancement).
+        val agg = aggregator(
+            FakeFixture("api-football", 0.8, emptyList()),
+            FakeFixture("football-data.org", 0.75, emptyList())
+        )
+        val (fixtures, sources) = agg.fetchMergedFixtures(39, 2026)
+        assertTrue(fixtures.isEmpty())
+        assertTrue(sources.isEmpty())
+    }
+
+    private fun named(id: Int, home: String, away: String, dateTs: Long = 1_791_631_800L) =
+        match(id).copy(homeTeamName = home, awayTeamName = away, dateTimestamp = dateTs)
+
+    @Test
+    fun `same fixture across name variants`() {
+        // Doublons constatés sur téléphone : « Hull » == « Hull City AFC ».
+        assertTrue(isSameFixture(named(1, "Hull", "Fulham"), named(2, "Hull City AFC", "Fulham FC")))
+        assertTrue(
+            isSameFixture(
+                named(1, "Brighton", "Crystal Palace"),
+                named(2, "Brighton & Hove Albion FC", "Crystal Palace FC")
+            )
+        )
+        assertTrue(isSameFixture(named(1, "Everton", "Chelsea"), named(2, "Everton FC", "Chelsea FC")))
+    }
+
+    @Test
+    fun `different teams or dates are not same fixture`() {
+        assertTrue(!isSameFixture(named(1, "Arsenal", "Leeds"), named(2, "Arsenal", "Chelsea")))
+        // Aller/retour à 3 mois d’intervalle : deux vrais matchs.
+        assertTrue(
+            !isSameFixture(
+                named(1, "Arsenal", "Leeds", 1_791_631_800L),
+                named(2, "Leeds", "Arsenal", 1_791_631_800L + 90 * 86400L)
+            )
+        )
+    }
+
+    @Test
+    fun `dedupe keeps first occurrence only`() {
+        val rows = listOf(
+            named(1, "Hull City AFC", "Fulham FC"),
+            named(2, "Hull", "Fulham"),
+            named(3, "Arsenal", "Leeds")
+        )
+        assertEquals(listOf(1, 3), dedupeFixtures(rows).map { it.id })
+    }
+
+    @Test
     fun `all empty returns empty`() = runTest {
         val agg = aggregator(
             FakeFixture("api-football", 0.8, emptyList()),

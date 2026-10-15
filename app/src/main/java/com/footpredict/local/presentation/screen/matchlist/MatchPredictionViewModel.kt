@@ -27,6 +27,8 @@ import com.footpredict.local.domain.usecase.ValidateLiveMatchesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.footpredict.local.presentation.screen.matchlist.topDoubleChance
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +36,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @HiltViewModel
@@ -54,10 +58,13 @@ class MatchPredictionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MatchUiState())
     val uiState: StateFlow<MatchUiState> = _uiState.asStateFlow()
 
-    private var leagueId = 39
     private var season = 2026
     private var livePollJob: Job? = null
     private var allMatches: List<EnrichedMatch> = emptyList()
+    /** Ligues chargées (toutes par défaut : pas de filtre de ligue imposé). */
+    private val loadedLeagues = mutableSetOf<Int>()
+    /** Sérialise les calculs de pronostics (rechargements multi-ligues). */
+    private val computeMutex = Mutex()
     /** Dernières cotes vues (détection de chute > 10 % en session). */
     private var prevOdds: Map<Int, com.footpredict.local.domain.model.Odds> = emptyMap()
 
@@ -66,14 +73,20 @@ class MatchPredictionViewModel @Inject constructor(
         private val LIVE_STATUSES = setOf("1H", "HT", "2H", "ET", "BT", "P", "LIVE", "INT")
         private val PREMATCH_STATUSES = setOf("NS", "TBD", "PST")
         private const val RECENT_LIMIT = 10
-        /** Ligues servies par le backend scraping (voir supabase/README.md). */
-        val LEAGUES = listOf(39, 140, 135, 78, 61, 2)
+        /** Ligues chargées d’office (registre `ApiFootballLeagues`, quota 100/j). */
+        val LEAGUES = com.footpredict.local.data.remote.fixture.ApiFootballLeagues.AUTO_IDS
+        /**
+         * Borne de calcul par défaut (opt-in non validé) : pronostics sur les
+         * 30 prochains jours max (protège CPU/batterie sur des milliers de
+         * matchs multi-ligues ; l’affichage, lui, n’est jamais borné).
+         */
+        private const val COMPUTE_UPCOMING_DAYS = 30
         private const val PREFS_FILTERS = "filter_settings"
     }
 
     init {
         _uiState.update { it.copy(windows = loadWindows()) }
-        load(leagueId, season)
+        loadAllLeagues()
     }
 
     private fun prefs() =
@@ -94,16 +107,58 @@ class MatchPredictionViewModel @Inject constructor(
             .apply()
     }
 
+    /**
+     * Changement de ligue SANS rechargement si déjà chargée, sinon chargement
+     * à la demande (exigences quota : 1–3 req, puis cache 6 h). Le filtre
+     * s’applique dans tous les cas aux données locales.
+     */
     fun selectLeague(newLeagueId: Int) {
-        if (newLeagueId == leagueId) return
         _uiState.update { it.copy(leagueId = newLeagueId) }
-        load(newLeagueId, season)
+        if (newLeagueId != ALL_LEAGUES && newLeagueId !in loadedLeagues) {
+            ensureLeague(newLeagueId)
+        } else {
+            applyFilters()
+        }
+    }
+
+    /** Charge UNE ligue à la demande (sélection explicite hors lot auto). */
+    private fun ensureLeague(leagueId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            try {
+                var last: Resource<List<EnrichedMatch>>? = null
+                repository.getEnrichedMatches(leagueId, season).collect { last = it }
+                val res = last
+                if (res is Resource.Success) {
+                    loadedLeagues += leagueId
+                    allMatches = (allMatches.filter { it.fixture.leagueId != leagueId } + res.data)
+                        .distinctBy { it.fixture.id }
+                    applyFilters()
+                    _uiState.update {
+                        it.copy(isLoading = false, isFromCache = res.fromCache, isOffline = false)
+                    }
+                    computePredictionsAndAlerts(allMatches)
+                    startLivePollingIfNeeded(allMatches)
+                    if (!res.fromCache) scheduleTrigger()
+                } else {
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = "Ligue indisponible hors-ligne")
+                    }
+                }
+            } catch (_: Exception) {
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = "Ligue indisponible hors-ligne")
+                }
+            }
+        }
     }
 
     /**
      * Validation simultanée du panneau de filtres : ligue, recherche, statut,
      * confiance min, intervalle de dates, fenêtres globales (persistées).
      * Un seul point d’application → listes, tops et alertes cohérents.
+     * C’EST ICI, et seulement ici, que les filtres deviennent actifs
+     * ([filtersApplied] : par défaut, l’écran Matchs montre TOUT).
      */
     fun applyFilterBundle(
         leagueId: Int,
@@ -118,14 +173,42 @@ class MatchPredictionViewModel @Inject constructor(
         saveWindows(windows)
         _uiState.update {
             it.copy(
+                leagueId = leagueId,
                 query = query,
                 statusFilter = statusFilter,
                 minConfidence = minConfidence.coerceIn(0f, 90f),
                 dateRangeMs = dateRangeMs,
-                windows = windows
+                windows = windows,
+                filtersApplied = true
             )
         }
-        if (leagueId != this.leagueId) selectLeague(leagueId) else applyFilters()
+        // Ligue jamais chargée (hors lot auto) → chargement à la demande
+        // (quota) avant d’appliquer ; sinon filtre local immédiat.
+        if (leagueId != ALL_LEAGUES && leagueId !in loadedLeagues) {
+            ensureLeague(leagueId)
+        } else {
+            applyFilters()
+            computePredictionsAndAlerts(allMatches)
+        }
+    }
+
+    /**
+     * Réinitialisation : tout réafficher (ligue « toutes », filtres inactifs).
+     * Les fenêtres persistées sont conservées pour la prochaine validation.
+     */
+    fun resetFilters() {
+        _uiState.update {
+            it.copy(
+                leagueId = ALL_LEAGUES,
+                query = "",
+                statusFilter = StatusFilter.ALL,
+                minConfidence = 0f,
+                dateRangeMs = null,
+                filtersApplied = false
+            )
+        }
+        applyFilters()
+        computePredictionsAndAlerts(allMatches)
     }
 
     fun setMinConfidence(percent: Float) {
@@ -136,12 +219,17 @@ class MatchPredictionViewModel @Inject constructor(
     /**
      * Vue filtrée + triée : matchs ouverts (live + à venir) par date croissante
      * d’abord, puis terminés par date décroissante.
+     *
+     * Opt-in strict : tant que l’utilisateur n’a pas validé ([filtersApplied]
+     * faux), seule la ligue choisie s’applique (« toutes » par défaut, donc
+     * rien) — ni fenêtre de dates, ni recherche, ni confiance.
      */
     private fun applyFilters() {
         val s = _uiState.value
         val q = s.query.trim().lowercase()
         val nowMs = System.currentTimeMillis()
         val filtered = allMatches.filter { em ->
+            val leagueOk = s.leagueId == ALL_LEAGUES || em.fixture.leagueId == s.leagueId
             val statusOk = when (s.statusFilter) {
                 StatusFilter.ALL -> true
                 StatusFilter.UPCOMING -> em.fixture.statusShort != "FT"
@@ -152,11 +240,11 @@ class MatchPredictionViewModel @Inject constructor(
                 em.fixture.awayTeamName.lowercase().contains(q)
             val confOk = s.minConfidence <= 0f ||
                 ((s.predictions[em.fixture.id]?.confidence ?: -1.0) * 100).toFloat() >= s.minConfidence
-            val dateOk = PickHelpers.inDateWindow(
+            val dateOk = !s.filtersApplied || PickHelpers.inDateWindow(
                 em.fixture.dateTimestamp, nowMs,
                 s.windows.upcomingDays, s.windows.pastDays, s.dateRangeMs
             )
-            statusOk && queryOk && confOk && dateOk
+            leagueOk && statusOk && queryOk && confOk && dateOk
         }
         val (open, closed) = filtered.partition { it.fixture.statusShort != "FT" }
         _uiState.update {
@@ -167,51 +255,64 @@ class MatchPredictionViewModel @Inject constructor(
                     .filter { m -> m.fixture.statusShort == "FT" }
                     .filter { m ->
                         val qq = q
+                        (s.leagueId == ALL_LEAGUES || m.fixture.leagueId == s.leagueId) &&
                         (qq.isEmpty() || m.fixture.homeTeamName.lowercase().contains(qq) ||
                             m.fixture.awayTeamName.lowercase().contains(qq)) &&
-                            PickHelpers.inDateWindow(
+                            (!s.filtersApplied || PickHelpers.inDateWindow(
                                 m.fixture.dateTimestamp, nowMs,
                                 s.windows.upcomingDays, s.windows.pastDays, s.dateRangeMs
-                            )
+                            ))
                     }
                     .sortedByDescending { it.fixture.dateTimestamp }
             )
         }
     }
 
-    fun load(leagueId: Int, season: Int) {
-        this.leagueId = leagueId
-        this.season = season
+    /**
+     * Chargement initial : TOUTES les ligues en parallèle (pas de filtre de
+     * ligue imposé — exigence « Matchs non filtré par défaut »). Chaque ligue
+     * profite de son cache 6 h (quota préservé) ; une ligue en échec n’empêche
+     * pas les autres (dégradation gracieuse). Rafraîchit via [retry].
+     */
+    fun loadAllLeagues() {
         stopLivePolling()
         viewModelScope.launch {
-            repository.getEnrichedMatches(leagueId, season).collect { resource ->
-                when (resource) {
-                    is Resource.Loading -> _uiState.update {
-                        it.copy(isLoading = true, errorMessage = null)
-                    }
-                    is Resource.Success -> {
-                        allMatches = resource.data
-                        applyFilters()
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                isFromCache = resource.fromCache,
-                                isOffline = false,
-                                errorMessage = null
-                            )
-                        }
-                        computePredictionsAndAlerts(resource.data)
-                        startLivePollingIfNeeded(resource.data)
-                        if (!resource.fromCache) scheduleTrigger()
-                    }
-                    is Resource.Error -> _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = resource.message,
-                            isOffline = true
-                        )
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val perLeague = LEAGUES.map { lid ->
+                async {
+                    try {
+                        var last: Resource<List<EnrichedMatch>>? = null
+                        repository.getEnrichedMatches(lid, season).collect { last = it }
+                        lid to last
+                    } catch (_: Exception) {
+                        lid to null
                     }
                 }
+            }.awaitAll()
+            var anyData = allMatches.isNotEmpty()
+            var anyFresh = false
+            for ((lid, res) in perLeague) {
+                if (res is Resource.Success) {
+                    anyData = true
+                    if (!res.fromCache) anyFresh = true
+                    loadedLeagues += lid
+                    allMatches = (allMatches.filter { it.fixture.leagueId != lid } + res.data)
+                        .distinctBy { it.fixture.id }
+                }
+            }
+            applyFilters()
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isFromCache = !anyFresh,
+                    isOffline = !anyData,
+                    errorMessage = if (!anyData) "Aucune source disponible" else null
+                )
+            }
+            if (anyData) {
+                computePredictionsAndAlerts(allMatches)
+                startLivePollingIfNeeded(allMatches)
+                if (anyFresh) scheduleTrigger()
             }
         }
     }
@@ -253,10 +354,13 @@ class MatchPredictionViewModel @Inject constructor(
         if (!_uiState.value.liveAutoRefreshEnabled) return
         _uiState.update { it.copy(isLiveRefreshing = true) }
         try {
-            // Synchro live ciblée (1 appel : scores + statuts + bascule FT).
-            val flipped = repository.validateLiveMatches(leagueId, season)
+            // Synchro live ciblée (ligues sous guet uniquement : quota).
+            var flipped = 0
+            for (lid in watchedLeagueIds()) {
+                flipped += repository.validateLiveMatches(lid, season)
+            }
             if (flipped > 0) {
-                load(leagueId, season)
+                loadAllLeagues()
             } else {
                 _uiState.update { it.copy(lastLiveRefreshAt = System.currentTimeMillis()) }
                 if (!isLiveWatched()) {
@@ -278,23 +382,39 @@ class MatchPredictionViewModel @Inject constructor(
         }
     }
 
+    /** Ligues avec au moins un match sous guet (polling ciblé, quota FD). */
+    private fun watchedLeagueIds(): Set<Int> {
+        val nowMs = System.currentTimeMillis()
+        return allMatches.filter {
+            val elapsedMin = (nowMs - it.fixture.dateTimestamp * 1000) / 60_000L
+            ValidateLiveMatchesUseCase.warrantsWatch(it.fixture.statusShort, elapsedMin)
+        }.map { it.fixture.leagueId }.toSet()
+    }
+
     private fun computePredictionsAndAlerts(
         matches: List<EnrichedMatch>,
         includeLive: Boolean = false
     ) {
         viewModelScope.launch {
-            val map = mutableMapOf<Int, com.footpredict.local.domain.model.EnsemblePrediction>()
+            // Rechargements multi-ligues concurrents : sérialisés, et la carte
+            // accumule (pas de perte entre deux passes).
+            computeMutex.withLock {
+            val map = _uiState.value.predictions.toMutableMap()
 
-            // ——— Prematch : TOUS les matchs à venir sont pronostiqués (pas de plafond),
-            // dans la fenêtre temporelle active (15 j par défaut).
+            // ——— Prematch : vivier borné (30 j par défaut non validé : protège
+            // CPU/batterie ; fenêtres utilisateur après validation explicite).
             val state = _uiState.value
             val windowNow = System.currentTimeMillis()
+            val activeUpcoming =
+                if (state.filtersApplied) state.windows.upcomingDays else COMPUTE_UPCOMING_DAYS
+            val activePast =
+                if (state.filtersApplied) state.windows.pastDays else COMPUTE_UPCOMING_DAYS
             val upcomingPool = PickHelpers.allUpcoming(
                 matches.filter { it.fixture.statusShort in PREMATCH_STATUSES }
             ).filter {
                 PickHelpers.inDateWindow(
                     it.fixture.dateTimestamp, windowNow,
-                    state.windows.upcomingDays, state.windows.pastDays, state.dateRangeMs
+                    activeUpcoming, activePast, state.dateRangeMs
                 )
             }
             val detailedIds = upcomingPool.map { it.fixture.id }.toSet()
@@ -405,16 +525,25 @@ class MatchPredictionViewModel @Inject constructor(
                 upcomingPool, map, exclude = tops.map { it.matchId }.toSet(), n = 3
             )
             // Cartes détaillées : tous les matchs à venir + live.
+            // Purge des pronostics périmés (fenêtre resserrée après validation).
             val detailed = map.filterKeys { it in detailedIds || it in liveIds }
-            // Coupon du jour (v1.3.0, accueil) : jambes strictes — confiance
-            // modèle ≥ 65 % ET value bet active (edge > 0 exigé dans
+            map.keys.retainAll(detailed.keys)
+            // Coupon du jour (v1.3.2, accueil) : jambes strictes — confiance
+            // modèle ≥ 75 % ET value bet active (edge > 0 exigé dans
             // buildCoupon). Sinon null honnête + message capital à l’accueil.
             val couponPool = upcomingPool.filter {
-                (map[it.fixture.id]?.confidence ?: 0.0) >= 0.65
+                (map[it.fixture.id]?.confidence ?: 0.0) >= 0.75
             }
             val coupon = buildCoupon(
                 couponPool.filter { it.fixture.id in detailedIds },
                 detailed
+            )
+            // Safe du jour (v1.3.2) : lignes dégradées à probabilité ≥ 88 %,
+            // sans condition de confiance modèle (la ligne sécurisée porte
+            // déjà sa propre sécurité). Null honnête si vide.
+            val safeCoupon = buildSafeCoupon(
+                upcomingPool.filter { it.fixture.id in detailedIds },
+                map
             )
             notifier.notifyHigh(alerts)
             _uiState.update {
@@ -430,12 +559,14 @@ class MatchPredictionViewModel @Inject constructor(
                     topBttsNo = PickHelpers.topBttsNo(upcomingPool, map),
                     topDC = topDoubleChance(upcomingPool, map),
                     coupon = coupon,
+                    safeCoupon = safeCoupon,
                     computeProgress = null,
                     showNotifPrompt = alerts.any { a ->
                         a.severity == com.footpredict.local.domain.model.AlertSeverity.HIGH
                     } && !notifier.hasPermission()
                 )
             }
+            } // computeMutex
         }
     }
 
@@ -592,19 +723,25 @@ class MatchPredictionViewModel @Inject constructor(
         }
     }
 
-    fun retry() = load(leagueId, season)
+    fun retry() = loadAllLeagues()
 
     /**
      * Déclencheur push après synchro réussie : le Worker réévalue en fond
      * (Top 5 + conf ≥ 70 % + value ≥ 15 %) et notifie via AlertNotifier
      * (plafond 2/jour, opt-in requis).
      */
+    /**
+     * Déclencheur push après synchro réussie (une seule ligue : la PL si
+     * chargée, sinon la première — le plafond 2/jour de l’AlertNotifier est
+     * global, on n’empile pas un worker par ligue).
+     */
     private fun scheduleTrigger() {
+        val triggerLeague = if (39 in loadedLeagues) 39 else loadedLeagues.firstOrNull() ?: return
         try {
             val request = androidx.work.OneTimeWorkRequestBuilder<com.footpredict.local.data.notification.PredictionTriggerWorker>()
                 .setInputData(
                     androidx.work.workDataOf(
-                        com.footpredict.local.data.notification.PredictionTriggerWorker.KEY_LEAGUE to leagueId,
+                        com.footpredict.local.data.notification.PredictionTriggerWorker.KEY_LEAGUE to triggerLeague,
                         com.footpredict.local.data.notification.PredictionTriggerWorker.KEY_SEASON to season,
                         com.footpredict.local.data.notification.PredictionTriggerWorker.KEY_MIN_CONF to 70.0,
                         com.footpredict.local.data.notification.PredictionTriggerWorker.KEY_MIN_EDGE to 0.15
@@ -612,7 +749,7 @@ class MatchPredictionViewModel @Inject constructor(
                 )
                 .build()
             androidx.work.WorkManager.getInstance(appContext).enqueueUniqueWork(
-                "${com.footpredict.local.data.notification.PredictionTriggerWorker.UNIQUE_PREFIX}-$leagueId-$season",
+                "${com.footpredict.local.data.notification.PredictionTriggerWorker.UNIQUE_PREFIX}-$triggerLeague-$season",
                 androidx.work.ExistingWorkPolicy.REPLACE,
                 request
             )

@@ -29,6 +29,7 @@ import com.footpredict.local.domain.model.SettledPrediction
 import com.footpredict.local.domain.model.StakingStrategy
 import com.footpredict.local.domain.model.recommendedStake
 import com.footpredict.local.presentation.screen.matchlist.Coupon
+import com.footpredict.local.presentation.screen.matchlist.SafeCoupon
 import kotlin.math.roundToInt
 
 /**
@@ -54,7 +55,8 @@ fun DailyCouponScreen(
     modifier: Modifier = Modifier,
     bankrollCapital: Double = 500.0,
     flatStake: Double = 10.0,
-    stakingStrategy: StakingStrategy = StakingStrategy.FLAT
+    stakingStrategy: StakingStrategy = StakingStrategy.FLAT,
+    safeCoupon: SafeCoupon? = null
 ) {
     val byId = remember(matches) { matches.associateBy { it.fixture.id } }
     val shareText = remember(coupon) {
@@ -179,6 +181,88 @@ fun DailyCouponScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(stringResource(R.string.coupon_share))
+                }
+            }
+        }
+
+        // ——— Safe du jour : lignes dégradées à ≥ 88 %, sans cotes. ———
+        item {
+            Text(
+                stringResource(R.string.safe_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (safeCoupon == null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Text(
+                        stringResource(R.string.safe_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        } else {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    )
+                ) {
+                    Column(
+                        Modifier.padding(20.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.safe_confidence,
+                                (safeCoupon.avgConfidence * 100).roundToInt()
+                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            stringResource(R.string.safe_no_odds),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+            }
+            items(safeCoupon.legs, key = { "safe_${it.matchId}" }) { leg ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val em = byId[leg.matchId]
+                        if (em != null) {
+                            Text(
+                                "${em.fixture.homeTeamName} vs ${em.fixture.awayTeamName}",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Text(
+                            "${leg.label} : ${(leg.probability * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
         }

@@ -1,6 +1,7 @@
 # Dette technique & couverture vs spec « 3 Dixon Coles.md »
 
-Mise à jour : 2026-10-09 (sprint P0 chef de projet).
+> Mise à jour : 2026-10-14 (cycle audit général v1.3.1 — voir § « Cycle v1.3.x » en fin).
+> Historique 2026-10-09 conservé tel quel ci-dessous.
 
 ## Traité dans ce sprint
 - [x] P0-1 Gradle Wrapper 8.9 : `gradle/wrapper/gradle-wrapper.properties` + stubs `gradlew`/`gradlew.bat`.
@@ -102,3 +103,31 @@ Mise à jour : 2026-10-09 (sprint P0 chef de projet).
 | 13 Hilt + Gradle | ✅ (wrapper stub, compose 2.0) |
 | 14 Edge Functions | ✅ (scrape-understat prod ; odds en placeholders) |
 | 15 Tests | ✅ (app 49 + scrapers 23, 100 % hors-ligne) |
+
+## Cycle v1.3.x (2026-10-13/14, audit général)
+- **État** : `:app:testDebugUnitTest` + `:scrapers:test` verts — **135 tests
+  (108 app + 27 scrapers)** ; `compileDebugKotlin` OK ; `assembleRelease` verts
+  répétés (R8, 2,3 Mo) ; 0 TODO/FIXME/`unwrap`/`expect` en prod (grep).
+- **v1.3.0** : bottom-bar (Coupon/Matchs/Terminés/Stats/Réglages), `DailyCouponScreen`
+  (seuils conf ≥ 65 % + edge > 0), `CornersPrediction` (statistique pure),
+  thème Slate + Bleu Électrique, bankroll Fixe/Kelly 5 %, CSV 17 col
+  (`simulation_gain_10e`), `TeamLogoStore` (blasons par club), pull-to-refresh,
+  `rememberSaveable` onglet marché, synchro live (scores + NS→live + FT rapide).
+- **v1.3.1 (audit externe)** : `marketHit()` — statut jugé sur le marché proposé
+  (fini l’inversion BTTS) ; soldés figés + migration unique ; migration Room 4→5
+  non destructive (`predictedMarket`, `bookmakerOdds` figée) ; Terminés rejoués
+  multi-marchés ; export SAF depuis tous les onglets ; langage courant + marchés
+  séparés par onglet ; `StringsFormatTest` (garde-fou `%`, 3 FATAL Réglages corrigés).
+- **Dette soldée ce cycle** : 3 `!!` à risque de crash (agrégateur hors-ligne vide,
+  `fetchMergedOdds` vide) + 2 hygiène (`OddsMovementGraph`, `edgeOnPredicted`) ;
+  `CouponScreen` mort supprimé (+ imports) ; déduplication inter-synchros
+  (`isSameFixture`/`dedupeFixtures`, doublons « Hull »/« Hull City AFC » constatés).
+- **Dette restante connue** : lignes soldées antérieures sans cote (non récupérable,
+  vide honnête) ; doublons déjà en base non purgés (pas d’orphelins : on garde
+  l’existant, on bloque les nouveaux) ; BTTS-No 33 % vrai + Under 30 % + confiance
+  non discriminante → re-calibration à décider sur données (pas à l’aveugle) ;
+  `MONEYWAY` sans producteur (inoffensif) ; wrapper jar manquant (stub, inchangé).
+- **Suivi backend (hors app)** : étendre le scraping aux ~34 nouvelles compétitions
+  du registre (`fetch-espn` couvre por.1/ned.1/uefa.champions/uefa.europa/bra.1/usa.1…,
+  gratuit sans clé) : nouvelles entrées LEAGUES + cron + vérification doublons ;
+  revalider les IDs API-Football via `/leagues`.

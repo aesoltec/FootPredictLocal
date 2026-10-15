@@ -24,84 +24,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.footpredict.local.R
-import com.footpredict.local.presentation.screen.matchlist.Coupon
 import com.footpredict.local.presentation.screen.matchlist.bankrollProjection
 import com.footpredict.local.presentation.screen.matchlist.settledToCardPrediction
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.math.roundToInt
-
-/**
- * Accueil : le coupon du jour (2–4 jambes, cote totale 1.8–5.0).
- * Rien ne passe les filtres → message de sécurité, jamais de forcé.
- */
-@Composable
-fun CouponScreen(coupon: Coupon?, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            stringResource(R.string.coupon_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        if (coupon == null) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(
-                    stringResource(R.string.coupon_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-            return
-        }
-        coupon.legs.forEachIndexed { index, leg ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "Match ${index + 1}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        leg.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        "${(leg.probability * 100).roundToInt()}% @ ${"%.2f".format(leg.decimalOdds)}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    stringResource(R.string.coupon_total, "%.2f".format(coupon.totalOdds)),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    stringResource(R.string.coupon_confidence, (coupon.avgConfidence * 100).roundToInt()),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-    }
-}
 
 /** Écran Terminés : cartes vert/rouge selon le résultat du pari. */
 @Composable

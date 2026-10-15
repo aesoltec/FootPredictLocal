@@ -1,9 +1,12 @@
 package com.footpredict.local.data.repository
 
 import com.footpredict.local.data.aggregator.DataFusionAggregator
+import com.footpredict.local.data.aggregator.dedupeFixtures
+import com.footpredict.local.data.aggregator.isSameFixture
 import com.footpredict.local.data.aggregator.mergeXg
 import com.footpredict.local.data.local.LocalDataSource
 import com.footpredict.local.data.local.TeamLogoStore
+import com.footpredict.local.data.remote.live.SupabaseLiveScoresDataSource
 import com.footpredict.local.data.local.entity.EloEntity
 import com.footpredict.local.data.local.entity.MatchEntity
 import com.footpredict.local.data.mapper.EntityMappers.toDomain
@@ -33,7 +36,8 @@ class MatchRepositoryImpl @Inject constructor(
     private val eloModel: EloRatingUseCase,
     private val fixtureSources: Set<@JvmSuppressWildcards FixtureRemoteDataSource>,
     private val liveValidator: ValidateLiveMatchesUseCase,
-    private val logoStore: TeamLogoStore
+    private val logoStore: TeamLogoStore,
+    private val supabaseLive: SupabaseLiveScoresDataSource
 ) : MatchRepository {
 
     companion object {
@@ -80,7 +84,16 @@ class MatchRepositoryImpl @Inject constructor(
             try {
                 val merged = aggregator.fetchMergedFixturesFull(leagueId, season)
                 val sourcesUsed = merged.sourcesUsed
-                val fixtures = mergeXg(merged.fixtures, merged.alternates)
+                // Anti-doublons inter-synchros (audit 2026-10-14) : la meilleure
+                // source variant, un même match peut arriver sous un autre ID
+                // (« Hull » vs « Hull City AFC »). On garde les lignes DÉJÀ en
+                // base (historique soldé intact) et on écarte les doublons
+                // entrants — jamais l’inverse (pas d’orphelins).
+                val incoming = dedupeFixtures(mergeXg(merged.fixtures, merged.alternates))
+                    .filter { inc ->
+                        cachedEntities.none { it.id != inc.id && isSameFixture(it, inc) }
+                    }
+                val fixtures = incoming.ifEmpty { cachedEntities }
 
                 if (fixtures.isEmpty()) {
                     if (cachedEntities.isEmpty()) {
@@ -211,9 +224,11 @@ class MatchRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Synchro live ciblée via football-data.org (1 seul appel, pas de resync
-     * complète) : scores en cours, bascules NS→live au coup d’envoi, bascule
-     * RAPIDE en FT dès confirmation (fini l’attente 105 min), purge EN_ATTENTE.
+     * Synchro live ciblée (v1.3.2) : d’abord le flux mutualisé Supabase
+     * `get-live-scores` (~40 ligues, cache serveur 90 s partagé, clé API
+     * protégée côté serveur), puis le chemin direct football-data.org
+     * (purge EN_ATTENTE, bascules FT). 1+1 appels max par passage ; sans clé
+     * ni réseau → 0 silencieux (hors-ligne intact).
      * Ne touche jamais aux matchs sans confirmation source (pas de score
      * inventé) ni aux FT en cache (pipeline settled propriétaire).
      *
@@ -234,40 +249,65 @@ class MatchRepositoryImpl @Inject constructor(
                 ValidateLiveMatchesUseCase.warrantsWatch(entity.statusShort, elapsedMin)
             }
             if (watch.isEmpty()) return 0
-            val fd = fixtureSources.firstOrNull { it.sourceName == "football-data.org" }
-                ?: return 0
-            val fresh = fd.fetchFixtures(leagueId, season)
-            if (fresh.isEmpty()) return 0
             var applied = 0
+            // 1. Flux live mutualisé Supabase (~40 ligues, cache serveur 90 s,
+            //    clé API protégée côté serveur) : 1 appel couvre tout.
+            try {
+                val live = supabaseLive.fetchLiveScores()
+                for (s in watch) {
+                    val match = live.firstOrNull { f ->
+                        f.leagueId == s.leagueId &&
+                            kotlin.math.abs(f.dateTimestamp - s.dateTimestamp) < 86400 &&
+                            sameTeams(f, s)
+                    } ?: continue
+                    if (applyLiveUpdate(s, match, nowMs)) applied++
+                }
+            } catch (_: Exception) {
+            }
+            // 2. Chemin historique football-data.org direct (purge EN_ATTENTE,
+            //    bascules FT confirmées) — conservé en second.
+            val fd = fixtureSources.firstOrNull { it.sourceName == "football-data.org" }
+                ?: return applied
+            val fresh = fd.fetchFixtures(leagueId, season)
+            if (fresh.isEmpty()) return applied
             for (s in watch) {
                 val match = fresh.firstOrNull { f ->
                     kotlin.math.abs(f.dateTimestamp - s.dateTimestamp) < 86400 &&
                         sameTeams(f, s)
                 } ?: continue
-                if (!ValidateLiveMatchesUseCase.shouldApplyLiveUpdate(
-                        s.statusShort, s.goalsHome, s.goalsAway,
-                        match.statusShort, match.goalsHome, match.goalsAway
-                    )
-                ) continue
-                local.upsertMatches(
-                    listOf(
-                        s.copy(
-                            statusShort = match.statusShort,
-                            statusLong = match.statusLong,
-                            // Buts confirmés nulls (live, plan gratuit) : on garde
-                            // les connus au lieu d’effacer le score affiché.
-                            goalsHome = match.goalsHome ?: s.goalsHome,
-                            goalsAway = match.goalsAway ?: s.goalsAway,
-                            lastUpdated = nowMs
-                        )
-                    )
-                )
-                applied++
+                if (applyLiveUpdate(s, match, nowMs)) applied++
             }
             applied
         } catch (_: Exception) {
             0
         }
+    }
+
+    /**
+     * Applique une mise à jour live confirmée (jamais de score inventé :
+     * décision [ValidateLiveMatchesUseCase.shouldApplyLiveUpdate], buts
+     * confirmés nulls conservés). Retourne vrai si basculé.
+     */
+    private suspend fun applyLiveUpdate(s: MatchEntity, match: MatchEntity, nowMs: Long): Boolean {
+        if (!ValidateLiveMatchesUseCase.shouldApplyLiveUpdate(
+                s.statusShort, s.goalsHome, s.goalsAway,
+                match.statusShort, match.goalsHome, match.goalsAway
+            )
+        ) return false
+        local.upsertMatches(
+            listOf(
+                s.copy(
+                    statusShort = match.statusShort,
+                    statusLong = match.statusLong,
+                    // Buts confirmés nulls (live, plan gratuit) : on garde
+                    // les connus au lieu d’effacer le score affiché.
+                    goalsHome = match.goalsHome ?: s.goalsHome,
+                    goalsAway = match.goalsAway ?: s.goalsAway,
+                    lastUpdated = nowMs
+                )
+            )
+        )
+        return true
     }
 
     private fun sameTeams(a: MatchEntity, b: MatchEntity): Boolean =
